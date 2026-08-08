@@ -1,7 +1,10 @@
+use rquickjs::function::Rest;
 use rquickjs::loader::{ImportAttributes, Loader, Resolver};
 use rquickjs::module::{Declared, Module};
-use rquickjs::{CatchResultExt, Context, Ctx, Error, Function, Promise, Runtime};
+use rquickjs::{CatchResultExt, Context, Ctx, Error, Exception, Function, Object, Promise, Runtime};
+use std::cell::RefCell;
 use std::io::{BufRead, Write};
+use std::rc::Rc;
 
 macro_rules! bytecode {
     ($file:literal) => {
@@ -115,6 +118,149 @@ globalThis.__evalCherry = async (code) => {
 };
 "#;
 
+//// wasm plugins
+//
+// A plugin is a wasm module whose exported functions become members of the
+// `plugin` global. A function with signature (i32, i32) -> i64 in a module
+// that also exports `alloc` is called with a string: the host allocates,
+// writes utf8 input and passes (ptr, len); the result i64 packs the output
+// as (ptr << 32) | len. All other functions map their params and result
+// to JS numbers.
+
+struct Plugin {
+    store: RefCell<wasmi::Store<()>>,
+    instance: wasmi::Instance,
+}
+
+fn plugin_memory(p: &Plugin, store: &mut wasmi::Store<()>) -> Result<wasmi::Memory, String> {
+    p.instance
+        .get_export(&mut *store, "memory")
+        .and_then(wasmi::Extern::into_memory)
+        .ok_or_else(|| "plugin exports no memory".to_string())
+}
+
+fn plugin_call_string(p: &Plugin, name: &str, input: &str) -> Result<String, String> {
+    let store = &mut *p.store.borrow_mut();
+    let alloc = p
+        .instance
+        .get_typed_func::<i32, i32>(&*store, "alloc")
+        .map_err(|e| e.to_string())?;
+    let ptr = alloc
+        .call(&mut *store, input.len() as i32)
+        .map_err(|e| e.to_string())?;
+    let mem = plugin_memory(p, store)?;
+    mem.write(&mut *store, ptr as usize, input.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let f = p
+        .instance
+        .get_typed_func::<(i32, i32), i64>(&*store, name)
+        .map_err(|e| e.to_string())?;
+    let packed = f
+        .call(&mut *store, (ptr, input.len() as i32))
+        .map_err(|e| e.to_string())? as u64;
+    let (rptr, rlen) = ((packed >> 32) as usize, (packed & 0xffff_ffff) as usize);
+    let mut buf = vec![0u8; rlen];
+    mem.read(&*store, rptr, &mut buf).map_err(|e| e.to_string())?;
+    String::from_utf8(buf).map_err(|e| e.to_string())
+}
+
+fn plugin_call_numeric(p: &Plugin, name: &str, args: &[f64]) -> Result<Option<f64>, String> {
+    let store = &mut *p.store.borrow_mut();
+    let f = p
+        .instance
+        .get_export(&mut *store, name)
+        .and_then(wasmi::Extern::into_func)
+        .ok_or_else(|| format!("{} is not a function", name))?;
+    let ty = f.ty(&*store);
+    if ty.params().len() != args.len() {
+        return Err(format!("{} expects {} arguments", name, ty.params().len()));
+    }
+    let inputs: Vec<wasmi::Val> = ty
+        .params()
+        .iter()
+        .zip(args)
+        .map(|(t, a)| match t {
+            wasmi::ValType::I64 => wasmi::Val::I64(*a as i64),
+            wasmi::ValType::F32 => wasmi::Val::F32((*a as f32).into()),
+            wasmi::ValType::F64 => wasmi::Val::F64((*a).into()),
+            _ => wasmi::Val::I32(*a as i32),
+        })
+        .collect();
+    let mut outputs: Vec<wasmi::Val> = ty.results().iter().map(|t| wasmi::Val::default(*t)).collect();
+    f.call(&mut *store, &inputs, &mut outputs)
+        .map_err(|e| e.to_string())?;
+    Ok(outputs.first().map(|v| match v {
+        wasmi::Val::I32(x) => *x as f64,
+        wasmi::Val::I64(x) => *x as f64,
+        wasmi::Val::F32(x) => f32::from(*x) as f64,
+        wasmi::Val::F64(x) => f64::from(*x),
+        _ => f64::NAN,
+    }))
+}
+
+fn throw<'js>(ctx: &Ctx<'js>, msg: &str) -> Error {
+    Exception::throw_message(ctx, msg)
+}
+
+fn load_plugins(ctx: &Ctx<'_>, paths: &[String]) -> rquickjs::Result<()> {
+    if paths.is_empty() {
+        return Ok(());
+    }
+    let plugin_obj = Object::new(ctx.clone())?;
+    let engine = wasmi::Engine::default();
+    for path in paths {
+        let bytes = std::fs::read(path).map_err(|e| throw(ctx, &format!("{}: {}", path, e)))?;
+        let module =
+            wasmi::Module::new(&engine, &bytes).map_err(|e| throw(ctx, &e.to_string()))?;
+        let has_alloc = module
+            .exports()
+            .any(|e| e.name() == "alloc" && matches!(e.ty(), wasmi::ExternType::Func(_)));
+        let exports: Vec<(String, bool)> = module
+            .exports()
+            .filter_map(|e| match e.ty() {
+                wasmi::ExternType::Func(ft) => {
+                    let stringy = has_alloc
+                        && ft.params()
+                            == [wasmi::ValType::I32, wasmi::ValType::I32]
+                        && ft.results() == [wasmi::ValType::I64];
+                    Some((e.name().to_string(), stringy))
+                }
+                _ => None,
+            })
+            .collect();
+        let mut store = wasmi::Store::new(&engine, ());
+        let linker = wasmi::Linker::<()>::new(&engine);
+        let instance = linker
+            .instantiate_and_start(&mut store, &module)
+            .map_err(|e| throw(ctx, &e.to_string()))?;
+        let plugin = Rc::new(Plugin {
+            store: RefCell::new(store),
+            instance,
+        });
+        for (name, stringy) in exports {
+            if name == "alloc" {
+                continue;
+            }
+            let func = if stringy {
+                let p = plugin.clone();
+                let n = name.clone();
+                Function::new(ctx.clone(), move |cx: Ctx<'_>, input: String| {
+                    plugin_call_string(&p, &n, &input).map_err(|m| throw(&cx, &m))
+                })?
+            } else {
+                let p = plugin.clone();
+                let n = name.clone();
+                Function::new(ctx.clone(), move |cx: Ctx<'_>, args: Rest<f64>| {
+                    plugin_call_numeric(&p, &n, &args.0).map_err(|m| throw(&cx, &m))
+                })?
+            };
+            plugin_obj.set(name.as_str(), func)?;
+        }
+    }
+    ctx.globals().set("plugin", plugin_obj)?;
+    Ok(())
+}
+
 fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
     let run = || -> rquickjs::Result<Vec<String>> {
         let f: Function = ctx.globals().get("__evalCherry")?;
@@ -182,13 +328,27 @@ fn main() {
             .catch(&ctx)
             .expect("bootstrap eval");
 
-        let args: Vec<String> = std::env::args().collect();
-        if args.get(1).map(String::as_str) == Some("--version") {
+        let mut args: Vec<String> = std::env::args().skip(1).collect();
+        let mut plugins: Vec<String> = Vec::new();
+        while let Some(i) = args.iter().position(|a| a == "--plugin") {
+            args.remove(i);
+            if i < args.len() {
+                plugins.push(args.remove(i));
+            } else {
+                eprintln!("--plugin needs a path");
+                return 1;
+            }
+        }
+        if args.first().map(String::as_str) == Some("--version") {
             println!("cherry-quickjs {}", env!("CARGO_PKG_VERSION"));
             return 0;
         }
-        if args.get(1).map(String::as_str) == Some("-e") {
-            match args.get(2) {
+        if let Err(e) = load_plugins(&ctx, &plugins).catch(&ctx) {
+            eprintln!("error: {}", e);
+            return 1;
+        }
+        if args.first().map(String::as_str) == Some("-e") {
+            match args.get(1) {
                 Some(code) => {
                     let (status, payload, _) = eval_cherry(&ctx, code);
                     match status.as_str() {
@@ -205,7 +365,7 @@ fn main() {
                     }
                 }
                 None => {
-                    eprintln!("usage: cherry-quickjs [-e expr]");
+                    eprintln!("usage: cherry-quickjs [--plugin file.wasm] [-e expr]");
                     1
                 }
             }

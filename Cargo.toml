@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 rquickjs = { version = "0.12.2", features = ["loader"] }
+wasmi = "1.1.0"
 
 [profile.release]
 opt-level = "z"
