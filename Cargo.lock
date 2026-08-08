@@ -207,6 +207,7 @@ dependencies = [
  "llrt_path",
  "llrt_process",
  "llrt_timers",
+ "llrt_tty",
  "llrt_zlib",
  "rquickjs",
  "sha2",
@@ -1346,6 +1347,17 @@ dependencies = [
  "rustls",
  "tracing",
  "webpki-roots",
+]
+
+[[package]]
+name = "llrt_tty"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8dfad7b7998dbde34c97a51c41ae13d8e66336355609e4a30437c6bae4941f85"
+dependencies = [
+ "libc",
+ "llrt_utils_watts",
+ "rquickjs",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@ use llrt_os::OsModule;
 use llrt_path::PathModule;
 use llrt_process::ProcessModule;
 use llrt_timers::TimersModule;
+use llrt_tty::TtyModule;
 use llrt_zlib::ZlibModule;
 use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
@@ -89,7 +90,12 @@ fn fetch_url(url: &str) -> Result<String, String> {
         }
     }
     eprintln!("Downloading {}", url);
-    let mut res = ureq::get(url).call().map_err(|e| e.to_string())?;
+    // a node-ish user agent makes esm.sh serve node builds, whose builtin
+    // imports (node:tty etc.) map to our native modules
+    let mut res = ureq::get(url)
+        .header("user-agent", "Node.js/22.0.0")
+        .call()
+        .map_err(|e| e.to_string())?;
     let body = res
         .body_mut()
         .read_to_string()
@@ -280,6 +286,8 @@ const NODE_MODULES: &[&str] = &[
     "node:buffer",
     "timers",
     "node:timers",
+    "tty",
+    "node:tty",
     "crypto",
     "node:crypto",
     "os",
@@ -316,6 +324,8 @@ async fn run() -> i32 {
         .with_module("node:buffer", BufferModule)
         .with_module("timers", TimersModule)
         .with_module("node:timers", TimersModule)
+        .with_module("tty", TtyModule)
+        .with_module("node:tty", TtyModule)
         .with_module("crypto", CryptoModule)
         .with_module("node:crypto", CryptoModule)
         .with_module("os", OsModule)

@@ -52,7 +52,7 @@ Cherry namespaces, embedded:
 
 Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
 their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
-`crypto`, `os`, `process`, `zlib`.
+`tty`, `crypto`, `os`, `process`, `zlib`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports.
 
@@ -85,9 +85,10 @@ happened.
 Pin the version in the URL. An unpinned URL stays at the version that
 the first download returned. There is no integrity check.
 
-Node builtin imports in remote modules (`node:fs` and friends, or
-esm.sh's `/node/*.mjs` shims) resolve to the native modules above, so
-npm libraries that use them work:
+Downloads send a Node user agent, so esm.sh serves node builds instead
+of browser builds. Node builtin imports in remote modules (`node:fs`
+and friends, or esm.sh's `/node/*.mjs` shims) resolve to the native
+modules above, so npm libraries that use them work:
 
 ```clojure
 (require '["https://esm.sh/@babashka/fs" :as bfs])
