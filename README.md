@@ -7,17 +7,16 @@ embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 
 ## Install
 
-Download from the [latest dev release](https://github.com/squint-cljs/cherry-quickjs/releases/tag/dev):
+macOS and Linux:
 
 ```sh
-# macOS (Apple Silicon)
-curl -sL https://github.com/squint-cljs/cherry-quickjs/releases/download/dev/cherry-quickjs-0.1.0-macos-aarch64.tar.gz | tar xz
-# Linux (x86_64)
-curl -sL https://github.com/squint-cljs/cherry-quickjs/releases/download/dev/cherry-quickjs-0.1.0-linux-amd64.tar.gz | tar xz
-# Windows (PowerShell)
-# Invoke-WebRequest -Uri https://github.com/squint-cljs/cherry-quickjs/releases/download/dev/cherry-quickjs-0.1.0-windows-amd64.zip -OutFile cherry-quickjs.zip
-# Expand-Archive cherry-quickjs.zip -DestinationPath .
+curl -sL https://raw.githubusercontent.com/squint-cljs/cherry-quickjs/main/install | bash
+# or into a specific directory:
+curl -sL https://raw.githubusercontent.com/squint-cljs/cherry-quickjs/main/install | bash -s -- --dir ~/bin
 ```
+
+On Windows, download the zip from the
+[dev release](https://github.com/squint-cljs/cherry-quickjs/releases/tag/dev).
 
 ## Usage
 

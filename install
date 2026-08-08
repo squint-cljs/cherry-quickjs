@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Installs the latest cherry-quickjs dev build into the current directory.
+# Usage: install [--dir <dir>]
+set -euo pipefail
+
+repo="squint-cljs/cherry-quickjs"
+dir="."
+if [ "${1:-}" = "--dir" ]; then
+  dir="${2:?--dir needs an argument}"
+fi
+
+case "$(uname -s)" in
+  Darwin) platform="macos" ;;
+  Linux) platform="linux" ;;
+  *) echo "unsupported OS: $(uname -s)" >&2; exit 1 ;;
+esac
+
+case "$(uname -m)" in
+  arm64|aarch64) arch="aarch64" ;;
+  x86_64) arch="amd64" ;;
+  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+version=$(curl -sL "https://raw.githubusercontent.com/$repo/main/Cargo.toml" \
+  | grep -m1 '^version' | cut -d '"' -f2)
+
+archive="cherry-quickjs-$version-$platform-$arch.tar.gz"
+url="https://github.com/$repo/releases/download/dev/$archive"
+
+echo "Downloading $url"
+curl -sL --fail "$url" | tar xz -C "$dir"
+echo "Installed $dir/cherry-quickjs ($version)"
