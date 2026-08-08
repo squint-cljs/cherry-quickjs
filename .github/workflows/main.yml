@@ -102,6 +102,16 @@ jobs:
             Rolling development build of cherry-quickjs.
 
             ```sh
-            tar xzf cherry-quickjs-<platform>-<arch>.tar.gz
+            tar xzf cherry-quickjs-<version>-<platform>-<arch>.tar.gz
             ./cherry-quickjs -e '(+ 1 2 3)'
             ```
+
+      - name: Prune old release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in $(gh release view dev -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
+            if [ ! -f "$asset" ]; then
+              gh release delete-asset dev "$asset" -R "$GITHUB_REPOSITORY" -y
+            fi
+          done
