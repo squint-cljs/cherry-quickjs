@@ -39,7 +39,8 @@ The cherry compiler and standard library from `assets/` are embedded in
 the binary as QuickJS bytecode. Each REPL input is compiled inside the
 engine and evaluated in the same context. Startup is around 17ms.
 
-Refresh the assets from a cherry checkout with:
+Refresh the assets from a cherry checkout (`bb build` there first) and
+record the commit in assets/PROVENANCE:
 
 ```bash
 cp ../cherry/cljs.core.js assets/
