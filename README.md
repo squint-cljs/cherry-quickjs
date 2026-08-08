@@ -17,8 +17,6 @@ curl -sL https://github.com/squint-cljs/cherry-quickjs/releases/download/dev/che
 # Windows (PowerShell)
 # Invoke-WebRequest -Uri https://github.com/squint-cljs/cherry-quickjs/releases/download/dev/cherry-quickjs-0.1.0-windows-amd64.zip -OutFile cherry-quickjs.zip
 # Expand-Archive cherry-quickjs.zip -DestinationPath .
-
-sudo mv cherry-quickjs /usr/local/bin/  # macOS/Linux
 ```
 
 ## Usage
