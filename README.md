@@ -52,7 +52,7 @@ Cherry namespaces, embedded:
 
 Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
 their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
-`tty`, `crypto`, `os`, `process`, `zlib`.
+`tty`, `crypto`, `os`, `process`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports.
 

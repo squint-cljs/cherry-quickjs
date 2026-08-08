@@ -13,7 +13,6 @@ llrt_path = "0.8.1-beta"
 llrt_process = "0.8.1-beta"
 llrt_timers = "0.8.1-beta"
 llrt_tty = "0.8.1-beta"
-llrt_zlib = "0.8.1-beta"
 rquickjs = { version = "0.11", features = ["loader", "futures"] }
 sha2 = "0.11.0"
 tokio = { version = "1.53.1", features = ["rt", "macros", "time", "net"] }

@@ -6,7 +6,6 @@ use llrt_path::PathModule;
 use llrt_process::ProcessModule;
 use llrt_timers::TimersModule;
 use llrt_tty::TtyModule;
-use llrt_zlib::ZlibModule;
 use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
 use rquickjs::{
@@ -294,8 +293,6 @@ const NODE_MODULES: &[&str] = &[
     "node:os",
     "process",
     "node:process",
-    "zlib",
-    "node:zlib",
 ];
 
 fn main() {
@@ -331,9 +328,7 @@ async fn run() -> i32 {
         .with_module("os", OsModule)
         .with_module("node:os", OsModule)
         .with_module("process", ProcessModule)
-        .with_module("node:process", ProcessModule)
-        .with_module("zlib", ZlibModule)
-        .with_module("node:zlib", ZlibModule);
+        .with_module("node:process", ProcessModule);
     rt.set_loader((builtin, CherryResolver), (modules, CherryLoader))
         .await;
     let context = AsyncContext::full(&rt).await.expect("context");
