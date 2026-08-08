@@ -5,9 +5,6 @@ binary: the JS build of the cherry compiler runs inside an embedded
 [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
-> [!WARNING]
-> This prototype was largely written by an LLM. Review before relying on it.
-
 ## Build
 
 ```bash
@@ -38,22 +35,11 @@ $ ./target/release/cherry-quickjs -e '(map inc [1 2 3])'
 
 ## How it works
 
-`assets/` holds the ES modules of the `cherry-cljs` npm package: the
-compiler, `cljs.core` and the bundled libraries (`clojure.string`,
-`clojure.set`, `clojure.walk`, `cljs.pprint`, `clojure.test`). They are
-precompiled to QuickJS bytecode by build.rs, embedded into the binary and
-served by a custom module resolver/loader, so `import 'cherry-cljs/...'`
-works without a filesystem. Each REPL input is compiled inside the engine with
-`compileStringEx` in `:repl` mode and evaluated in an async IIFE. Vars
-live on `globalThis.<ns>` and persist across evals.
+The cherry compiler and standard library from `assets/` are embedded in
+the binary as QuickJS bytecode. Each REPL input is compiled inside the
+engine and evaluated in the same context. Startup is around 17ms.
 
-Startup is around 17ms, since no JS is parsed at run time. QuickJS
-interprets, so hot loops are slower than V8 or a JITted GraalJS; for
-scripting workloads this rarely matters.
-
-The assets must come from a cherry build that includes the repl fixes from
-August 2026 (rename collisions, require alias registration). Refresh them
-from a cherry checkout with:
+Refresh the assets from a cherry checkout with:
 
 ```bash
 cp ../cherry/cljs.core.js assets/
