@@ -82,8 +82,9 @@ Globals: `Buffer`, `console`, `crypto`, `process`, `fetch`, `Headers`,
 Pin the version in the URL. An unpinned URL stays at the version that
 the first download returned. There is no integrity check.
 
-Node builtin imports in remote modules resolve to the native modules
-above, so npm libraries that use `fs`, `path` or `crypto` work:
+Node builtin imports in remote modules (`node:fs` and friends, or
+esm.sh's `/node/*.mjs` shims) resolve to the native modules above, so
+npm libraries that use them work:
 
 ```clojure
 (require '["https://esm.sh/@babashka/fs" :as bfs])

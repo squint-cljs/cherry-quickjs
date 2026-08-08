@@ -113,6 +113,10 @@ impl Resolver for CherryResolver {
         name: &str,
     ) -> rquickjs::Result<String> {
         if is_url(name) || is_url(base) {
+            // a remote module importing a node builtin directly
+            if NODE_MODULES.contains(&name) {
+                return Ok(name.to_string());
+            }
             let url = if is_url(name) {
                 name.to_string()
             } else {
