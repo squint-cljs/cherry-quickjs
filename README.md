@@ -60,6 +60,9 @@ Globals: `Buffer`, `console`, `crypto`, `process`, `fetch`, `Headers`,
 `Request`, `Response`, `FormData`, `setTimeout`, `clearTimeout`,
 `setInterval`, `clearInterval`, `setImmediate`.
 
+`*e` holds the last repl exception: `(.-stack *e)` prints where it
+happened.
+
 `await` works on all promises:
 
 ```clojure
