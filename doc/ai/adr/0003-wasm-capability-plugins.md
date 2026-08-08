@@ -34,10 +34,27 @@ $ cherry-quickjs --plugin plugins/demo.wasm \
 
 Without the flag, `plugin` is not defined: deny by default.
 
+Plugins run under WASI preview 1 (wasmi_wasi). `--allow <dir>` preopens
+a directory; without it plugins see no filesystem at all. fs-plugin/ is
+compiled to wasm32-wasip1 and exports `head` (first five lines of a
+file), committed as plugins/fs.wasm:
+
+```
+$ cherry-quickjs --plugin plugins/fs.wasm --allow . \
+    -e '(js/plugin.head "README.md")'
+"# cherry-quickjs\n..."
+$ cherry-quickjs --plugin plugins/fs.wasm \
+    -e '(js/plugin.head "README.md")'
+"error: README.md: No such file or directory (os error 44)"
+```
+
+A path outside the preopens fails the same way: the file does not
+exist from inside the sandbox.
+
 ## Not in the demo
 
-- WASI grants per plugin (filesystem, network). wasmi has a companion
-  wasi crate; this is where real capabilities come from.
+- Per-plugin grants: --allow applies to every loaded plugin.
+- Network capabilities.
 - Resource limits on the QuickJS side (memory limit, interrupt handler)
   and on the wasm side (fuel).
 - Plugin allocations leak (`alloc` without free); acceptable for
@@ -48,6 +65,7 @@ Without the flag, `plugin` is not defined: deny by default.
 
 ## Consequences
 
-- Binary grows from 1.8MB to 2.5MB with wasmi included.
+- Binary grows from 1.8MB to 2.7MB with wasmi and wasmi_wasi included.
 - The capability story holds: cherry code cannot obtain what the host
-  did not grant.
+  did not grant, and a filesystem grant is scoped to the preopened
+  directories.

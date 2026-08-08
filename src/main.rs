@@ -127,12 +127,14 @@ globalThis.__evalCherry = async (code) => {
 // as (ptr << 32) | len. All other functions map their params and result
 // to JS numbers.
 
+type PluginStore = wasmi::Store<wasmi_wasi::WasiCtx>;
+
 struct Plugin {
-    store: RefCell<wasmi::Store<()>>,
+    store: RefCell<PluginStore>,
     instance: wasmi::Instance,
 }
 
-fn plugin_memory(p: &Plugin, store: &mut wasmi::Store<()>) -> Result<wasmi::Memory, String> {
+fn plugin_memory(p: &Plugin, store: &mut PluginStore) -> Result<wasmi::Memory, String> {
     p.instance
         .get_export(&mut *store, "memory")
         .and_then(wasmi::Extern::into_memory)
@@ -202,7 +204,20 @@ fn throw<'js>(ctx: &Ctx<'js>, msg: &str) -> Error {
     Exception::throw_message(ctx, msg)
 }
 
-fn load_plugins(ctx: &Ctx<'_>, paths: &[String]) -> rquickjs::Result<()> {
+fn wasi_ctx(ctx: &Ctx<'_>, allow: &[String]) -> rquickjs::Result<wasmi_wasi::WasiCtx> {
+    let mut builder = wasmi_wasi::WasiCtxBuilder::new();
+    builder.inherit_stdout().inherit_stderr();
+    for dir in allow {
+        let handle = wasmi_wasi::Dir::open_ambient_dir(dir, wasmi_wasi::ambient_authority())
+            .map_err(|e| throw(ctx, &format!("--allow {}: {}", dir, e)))?;
+        builder
+            .preopened_dir(handle, dir)
+            .map_err(|e| throw(ctx, &e.to_string()))?;
+    }
+    Ok(builder.build())
+}
+
+fn load_plugins(ctx: &Ctx<'_>, paths: &[String], allow: &[String]) -> rquickjs::Result<()> {
     if paths.is_empty() {
         return Ok(());
     }
@@ -228,11 +243,18 @@ fn load_plugins(ctx: &Ctx<'_>, paths: &[String]) -> rquickjs::Result<()> {
                 _ => None,
             })
             .collect();
-        let mut store = wasmi::Store::new(&engine, ());
-        let linker = wasmi::Linker::<()>::new(&engine);
+        let mut store = wasmi::Store::new(&engine, wasi_ctx(ctx, allow)?);
+        let mut linker = wasmi::Linker::<wasmi_wasi::WasiCtx>::new(&engine);
+        wasmi_wasi::add_to_linker(&mut linker, |wasi| wasi)
+            .map_err(|e| throw(ctx, &e.to_string()))?;
         let instance = linker
             .instantiate_and_start(&mut store, &module)
             .map_err(|e| throw(ctx, &e.to_string()))?;
+        // wasi reactor modules export _initialize instead of a start section
+        if let Ok(init) = instance.get_typed_func::<(), ()>(&store, "_initialize") {
+            init.call(&mut store, ())
+                .map_err(|e| throw(ctx, &e.to_string()))?;
+        }
         let plugin = Rc::new(Plugin {
             store: RefCell::new(store),
             instance,
@@ -330,20 +352,23 @@ fn main() {
 
         let mut args: Vec<String> = std::env::args().skip(1).collect();
         let mut plugins: Vec<String> = Vec::new();
-        while let Some(i) = args.iter().position(|a| a == "--plugin") {
-            args.remove(i);
-            if i < args.len() {
-                plugins.push(args.remove(i));
-            } else {
-                eprintln!("--plugin needs a path");
-                return 1;
+        let mut allow: Vec<String> = Vec::new();
+        for (flag, target) in [("--plugin", &mut plugins), ("--allow", &mut allow)] {
+            while let Some(i) = args.iter().position(|a| a == flag) {
+                args.remove(i);
+                if i < args.len() {
+                    target.push(args.remove(i));
+                } else {
+                    eprintln!("{} needs an argument", flag);
+                    return 1;
+                }
             }
         }
         if args.first().map(String::as_str) == Some("--version") {
             println!("cherry-quickjs {}", env!("CARGO_PKG_VERSION"));
             return 0;
         }
-        if let Err(e) = load_plugins(&ctx, &plugins).catch(&ctx) {
+        if let Err(e) = load_plugins(&ctx, &plugins, &allow).catch(&ctx) {
             eprintln!("error: {}", e);
             return 1;
         }
