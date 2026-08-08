@@ -1,4 +1,7 @@
-use rquickjs::loader::{ImportAttributes, Loader, Resolver};
+use llrt_buffer::BufferModule;
+use llrt_fs::FsModule;
+use llrt_path::PathModule;
+use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
 use rquickjs::{CatchResultExt, Context, Ctx, Error, Function, Promise, Runtime};
 use std::io::{BufRead, Write};
@@ -43,7 +46,6 @@ impl Resolver for CherryResolver {
         _ctx: &Ctx<'js>,
         base: &str,
         name: &str,
-        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<String> {
         let resolved = if name.starts_with("./") || name.starts_with("../") {
             let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
@@ -66,7 +68,6 @@ impl Loader for CherryLoader {
         &mut self,
         ctx: &Ctx<'js>,
         name: &str,
-        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, Declared>> {
         let bytes = ASSETS
             .iter()
@@ -168,11 +169,25 @@ fn repl(ctx: &Ctx<'_>) {
     }
 }
 
+const NODE_MODULES: &[&str] = &["fs", "node:fs", "path", "node:path", "buffer", "node:buffer"];
+
 fn main() {
     let rt = Runtime::new().expect("runtime");
-    rt.set_loader(CherryResolver, CherryLoader);
+    let mut builtin = BuiltinResolver::default();
+    for name in NODE_MODULES {
+        builtin = builtin.with_module(*name);
+    }
+    let modules = ModuleLoader::default()
+        .with_module("fs", FsModule)
+        .with_module("node:fs", FsModule)
+        .with_module("path", PathModule)
+        .with_module("node:path", PathModule)
+        .with_module("buffer", BufferModule)
+        .with_module("node:buffer", BufferModule);
+    rt.set_loader((builtin, CherryResolver), (modules, CherryLoader));
     let context = Context::full(&rt).expect("context");
     let exit_code = context.with(|ctx| {
+        llrt_buffer::init(&ctx).expect("buffer init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");

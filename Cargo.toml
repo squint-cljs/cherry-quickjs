@@ -4,7 +4,10 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
-rquickjs = { version = "0.12.2", features = ["loader"] }
+llrt_buffer = "0.8.1-beta"
+llrt_fs = "0.8.1-beta"
+llrt_path = "0.8.1-beta"
+rquickjs = { version = "0.11", features = ["loader"] }
 
 [profile.release]
 opt-level = "z"
@@ -14,4 +17,4 @@ codegen-units = 1
 panic = "abort"
 
 [build-dependencies]
-rquickjs = { version = "0.12.2", features = ["loader"] }
+rquickjs = { version = "0.11", features = ["loader"] }

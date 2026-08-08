@@ -1,4 +1,4 @@
-use rquickjs::loader::{ImportAttributes, Loader, Resolver};
+use rquickjs::loader::{Loader, Resolver};
 use rquickjs::module::Declared;
 use rquickjs::{Context, Ctx, Error, Module, Runtime, WriteOptions};
 use std::path::Path;
@@ -43,7 +43,6 @@ impl Resolver for AssetResolver {
         _ctx: &Ctx<'js>,
         base: &str,
         name: &str,
-        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<String> {
         if name.starts_with("./") || name.starts_with("../") {
             let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
@@ -73,7 +72,6 @@ impl Loader for AssetLoader {
         &mut self,
         ctx: &Ctx<'js>,
         name: &str,
-        _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, Declared>> {
         declare_and_write(ctx, name)
     }
