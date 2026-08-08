@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - cherry-cljs@0.6.36

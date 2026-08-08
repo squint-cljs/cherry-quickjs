@@ -9,13 +9,13 @@ importers:
   .:
     dependencies:
       cherry-cljs:
-        specifier: 0.6.35
-        version: 0.6.35
+        specifier: 0.6.36
+        version: 0.6.36
 
 packages:
 
-  cherry-cljs@0.6.35:
-    resolution: {integrity: sha512-hm/uQ4h7pCiqTOBFcVZD58G9ofMe3wwhcIWK999ZgU5xhlDKj6ZekS7PyupX+SxGpoTKF4o8z04RJafrY/KL6g==}
+  cherry-cljs@0.6.36:
+    resolution: {integrity: sha512-e1GLW57yTUAl/gcLFV4KZNjVxj89DK2F6JFyyS4B+cOTs49MifOrTzRminap+G5bYbLnyzY2SuLAri08CpYcMA==}
     hasBin: true
 
   chokidar@4.0.3:
@@ -32,7 +32,7 @@ packages:
 
 snapshots:
 
-  cherry-cljs@0.6.35:
+  cherry-cljs@0.6.36:
     dependencies:
       chokidar: 4.0.3
       squint-cljs: 0.14.206

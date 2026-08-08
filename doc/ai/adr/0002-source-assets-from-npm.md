@@ -21,8 +21,8 @@ commit to main and uploads the binaries to the rolling `dev` prerelease.
 
 - Reproducible: the binary is a function of pnpm-lock.yaml, Cargo.lock
   and the Rust toolchain.
-- cherry-cljs 0.6.35 (current pin) predates the August 2026 repl fixes:
-  a second `require` in one session throws ("s is not defined") and the
-  gensym rename collision ("'seq__37' is read-only") can surface. Bump
-  the pin when the next cherry release ships; no other change needed.
+- The initial pin, cherry-cljs 0.6.35, predated the August 2026 repl
+  fixes: a second `require` in one session threw ("s is not defined")
+  and the gensym rename collision ("'seq__37' is read-only") could
+  surface. 0.6.36 ships the fixes and the pin moved to it.
 - Local no-network builds need a populated pnpm store.
