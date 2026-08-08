@@ -78,6 +78,33 @@ happened.
 (-> (await (js/fetch "https://api.github.com/zen")) (.text) await)
 ```
 
+## HTTP server
+
+`cherry.http/serve` starts an HTTP server on 127.0.0.1. The handler
+takes a fetch API `Request` and returns a `Response`, or a promise of
+one:
+
+```clojure
+(require '[cherry.http :refer [serve]])
+
+(serve (fn [req] (js/Response. "hello")) {:port 3000})
+```
+
+A Hono app plugs in directly:
+
+```clojure
+(require '["https://esm.sh/hono" :refer [Hono]]
+         '[cherry.http :refer [serve]])
+
+(def app (Hono.))
+(.get app "/" (fn [c] (.text c "hello from hono")))
+
+(serve (.-fetch app) {:port 3000})
+```
+
+A script with a running server keeps the process alive. JS modules
+import the same API from `cherry:http`.
+
 ## URL imports
 
 `https://` specifiers load like in Deno. Downloads cache in

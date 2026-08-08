@@ -4,6 +4,10 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
+bytes = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 llrt_buffer = "0.8.1-beta"
 llrt_crypto = "0.8.1-beta"
 llrt_fetch = "0.8.1-beta"

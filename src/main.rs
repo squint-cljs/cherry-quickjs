@@ -11,7 +11,9 @@ use rquickjs::module::{Declared, Module};
 use rquickjs::{
     async_with, AsyncContext, AsyncRuntime, CatchResultExt, Ctx, Error, Function, Promise,
 };
-use std::io::{BufRead, Write};
+use std::io::Write;
+
+mod serve;
 
 macro_rules! bytecode {
     ($file:literal) => {
@@ -117,6 +119,9 @@ impl Resolver for CherryResolver {
         base: &str,
         name: &str,
     ) -> rquickjs::Result<String> {
+        if serve::JS_MODULES.iter().any(|(n, _)| *n == name) {
+            return Ok(name.to_string());
+        }
         if is_url(name) || is_url(base) {
             // a remote module importing a node builtin directly
             if NODE_MODULES.contains(&name) {
@@ -167,6 +172,9 @@ impl Loader for CherryLoader {
         ctx: &Ctx<'js>,
         name: &str,
     ) -> rquickjs::Result<Module<'js, Declared>> {
+        if let Some((_, src)) = serve::JS_MODULES.iter().find(|(n, _)| *n == name) {
+            return Module::declare(ctx.clone(), name, *src);
+        }
         if is_url(name) {
             let src = fetch_url(name)
                 .map_err(|e| Error::new_loading_message(name, e))?;
@@ -240,8 +248,9 @@ async fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
     }
 }
 
+// stdin reads run on a blocking thread so server tasks stay live
+// between inputs
 async fn repl(ctx: &Ctx<'_>) {
-    let stdin = std::io::stdin();
     let mut ns = "user".to_string();
     let mut buf = String::new();
     loop {
@@ -251,11 +260,16 @@ async fn repl(ctx: &Ctx<'_>) {
             print!("      ");
         }
         std::io::stdout().flush().ok();
-        let mut line = String::new();
-        match stdin.lock().read_line(&mut line) {
-            Ok(0) | Err(_) => return,
-            Ok(_) => {}
-        }
+        let line = match tokio::task::spawn_blocking(|| {
+            let mut s = String::new();
+            std::io::stdin().read_line(&mut s).map(|n| (n, s))
+        })
+        .await
+        {
+            Ok(Ok((0, _))) => return,
+            Ok(Ok((_, s))) => s,
+            _ => return,
+        };
         if buf.is_empty() && line.trim().is_empty() {
             continue;
         }
@@ -271,6 +285,13 @@ async fn repl(ctx: &Ctx<'_>) {
             _ => println!("error: {}", payload),
         }
         buf.clear();
+    }
+}
+
+// a script that bound a listener keeps the process alive, node-style
+async fn wait_for_servers(listeners: &std::cell::Cell<usize>) {
+    if listeners.get() > 0 {
+        std::future::pending::<()>().await;
     }
 }
 
@@ -296,16 +317,20 @@ const NODE_MODULES: &[&str] = &[
 ];
 
 fn main() {
-    let exit_code = tokio::runtime::Builder::new_current_thread()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("tokio runtime")
-        .block_on(run());
+        .expect("tokio runtime");
+    let local = tokio::task::LocalSet::new();
+    let exit_code = local.block_on(&rt, run());
     std::process::exit(exit_code);
 }
 
 async fn run() -> i32 {
     let rt = AsyncRuntime::new().expect("runtime");
+    // the cherry compiler recurses deeply on nested forms, the quickjs
+    // default stack limit is too small for it
+    rt.set_max_stack_size(4 * 1024 * 1024).await;
     let mut builtin = BuiltinResolver::default();
     for name in NODE_MODULES {
         builtin = builtin.with_module(*name);
@@ -332,6 +357,11 @@ async fn run() -> i32 {
     rt.set_loader((builtin, CherryResolver), (modules, CherryLoader))
         .await;
     let context = AsyncContext::full(&rt).await.expect("context");
+
+    let serve_tx = serve::start(context.clone());
+    let listeners = std::rc::Rc::new(std::cell::Cell::new(0usize));
+
+    let listeners_after = listeners.clone();
     let exit_code = async_with!(context => |ctx| {
         llrt_buffer::init(&ctx).expect("buffer init");
         llrt_timers::init(&ctx).expect("timers init");
@@ -340,6 +370,7 @@ async fn run() -> i32 {
         llrt_process::init(&ctx).expect("process init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
+        serve::init(&ctx, serve_tx, listeners.clone());
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
         Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
             .expect("bootstrap declare")
@@ -362,6 +393,7 @@ async fn run() -> i32 {
                             if payload != "nil" {
                                 println!("{}", payload);
                             }
+                            wait_for_servers(&listeners_after).await;
                             0
                         }
                         _ => {
@@ -380,7 +412,10 @@ async fn run() -> i32 {
                 Ok(code) => {
                     let (status, payload, _) = eval_cherry(&ctx, &code).await;
                     match status.as_str() {
-                        "ok" => 0,
+                        "ok" => {
+                            wait_for_servers(&listeners_after).await;
+                            0
+                        }
                         _ => {
                             eprintln!("error: {}", payload);
                             1
