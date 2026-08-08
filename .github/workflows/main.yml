@@ -45,6 +45,10 @@ jobs:
       - name: Install cherry-cljs
         run: pnpm install --frozen-lockfile
 
+      - name: Version
+        shell: bash
+        run: echo "VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)" >> "$GITHUB_ENV"
+
       - name: Build
         run: cargo build --release
 
@@ -58,18 +62,18 @@ jobs:
       - name: Package binary (unix)
         if: matrix.platform != 'windows'
         shell: bash
-        run: tar czf cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C target/release cherry-quickjs
+        run: tar czf cherry-quickjs-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C target/release cherry-quickjs
 
       - name: Package binary (windows)
         if: matrix.platform == 'windows'
         shell: bash
-        run: 7z a cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.zip ./target/release/cherry-quickjs.exe
+        run: 7z a cherry-quickjs-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.zip ./target/release/cherry-quickjs.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}
-          path: cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.platform == 'windows' && 'zip' || 'tar.gz' }}
+          path: cherry-quickjs-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.platform == 'windows' && 'zip' || 'tar.gz' }}
 
   release:
     needs: build
@@ -92,11 +96,8 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            cherry-quickjs-linux-amd64.tar.gz
-            cherry-quickjs-linux-aarch64.tar.gz
-            cherry-quickjs-macos-aarch64.tar.gz
-            cherry-quickjs-macos-amd64.tar.gz
-            cherry-quickjs-windows-amd64.zip
+            cherry-quickjs-*.tar.gz
+            cherry-quickjs-*.zip
           body: |
             Rolling development build of cherry-quickjs.
 

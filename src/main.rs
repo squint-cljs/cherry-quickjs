@@ -183,6 +183,10 @@ fn main() {
             .expect("bootstrap eval");
 
         let args: Vec<String> = std::env::args().collect();
+        if args.get(1).map(String::as_str) == Some("--version") {
+            println!("cherry-quickjs {}", env!("CARGO_PKG_VERSION"));
+            return 0;
+        }
         if args.get(1).map(String::as_str) == Some("-e") {
             match args.get(2) {
                 Some(code) => {
