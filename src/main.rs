@@ -371,7 +371,24 @@ async fn run() -> i32 {
                     }
                 }
                 None => {
-                    eprintln!("usage: cherry-quickjs [-e expr]");
+                    eprintln!("usage: cherry-quickjs [-e expr] [file]");
+                    1
+                }
+            }
+        } else if let Some(file) = args.get(1) {
+            match std::fs::read_to_string(file) {
+                Ok(code) => {
+                    let (status, payload, _) = eval_cherry(&ctx, &code).await;
+                    match status.as_str() {
+                        "ok" => 0,
+                        _ => {
+                            eprintln!("error: {}", payload);
+                            1
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("error: {}: {}", file, e);
                     1
                 }
             }

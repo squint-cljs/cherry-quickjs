@@ -44,6 +44,12 @@ $ cherry-quickjs -e '(map inc [1 2 3])'
 (2 3 4)
 ```
 
+A file argument runs the file:
+
+```sh
+$ cherry-quickjs script.cljs
+```
+
 ## API
 
 Cherry namespaces, embedded:
