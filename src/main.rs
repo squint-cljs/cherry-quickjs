@@ -1,7 +1,11 @@
 use llrt_buffer::BufferModule;
+use llrt_crypto::CryptoModule;
 use llrt_fs::{FsModule, FsPromisesModule};
+use llrt_os::OsModule;
 use llrt_path::PathModule;
+use llrt_process::ProcessModule;
 use llrt_timers::TimersModule;
+use llrt_zlib::ZlibModule;
 use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
 use rquickjs::{
@@ -108,11 +112,29 @@ impl Resolver for CherryResolver {
         base: &str,
         name: &str,
     ) -> rquickjs::Result<String> {
-        if is_url(name) {
-            return Ok(name.to_string());
-        }
-        if is_url(base) {
-            return Ok(join_url(base, name));
+        if is_url(name) || is_url(base) {
+            let url = if is_url(name) {
+                name.to_string()
+            } else {
+                join_url(base, name)
+            };
+            // esm.sh serves node builtins as /node/<name>.mjs browser shims;
+            // serve our native modules instead when we have them
+            if let Some(rest) = url.split("://").nth(1) {
+                if let Some(slash) = rest.find('/') {
+                    let path = &rest[slash..];
+                    if let Some(stem) = path
+                        .strip_prefix("/node/")
+                        .and_then(|p| p.strip_suffix(".mjs"))
+                    {
+                        let builtin = format!("node:{}", stem);
+                        if NODE_MODULES.contains(&builtin.as_str()) {
+                            return Ok(builtin);
+                        }
+                    }
+                }
+            }
+            return Ok(url);
         }
         let resolved = if name.starts_with("./") || name.starts_with("../") {
             let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
@@ -183,6 +205,8 @@ globalThis.__evalCherry = async (code) => {
     const v = await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
     return ['ok', (v === null || v === undefined) ? 'nil' : core.pr_str(v), ns];
   } catch (e) {
+    // *e, like a Clojure repl: cljs.core/*e is a dynamic var box
+    if (core._STAR_e) core._STAR_e.val = e;
     return ['error', __str(e), ns];
   }
 };
@@ -252,6 +276,14 @@ const NODE_MODULES: &[&str] = &[
     "node:buffer",
     "timers",
     "node:timers",
+    "crypto",
+    "node:crypto",
+    "os",
+    "node:os",
+    "process",
+    "node:process",
+    "zlib",
+    "node:zlib",
 ];
 
 fn main() {
@@ -279,7 +311,15 @@ async fn run() -> i32 {
         .with_module("buffer", BufferModule)
         .with_module("node:buffer", BufferModule)
         .with_module("timers", TimersModule)
-        .with_module("node:timers", TimersModule);
+        .with_module("node:timers", TimersModule)
+        .with_module("crypto", CryptoModule)
+        .with_module("node:crypto", CryptoModule)
+        .with_module("os", OsModule)
+        .with_module("node:os", OsModule)
+        .with_module("process", ProcessModule)
+        .with_module("node:process", ProcessModule)
+        .with_module("zlib", ZlibModule)
+        .with_module("node:zlib", ZlibModule);
     rt.set_loader((builtin, CherryResolver), (modules, CherryLoader))
         .await;
     let context = AsyncContext::full(&rt).await.expect("context");
@@ -287,6 +327,8 @@ async fn run() -> i32 {
         llrt_buffer::init(&ctx).expect("buffer init");
         llrt_timers::init(&ctx).expect("timers init");
         llrt_fetch::init(&ctx).expect("fetch init");
+        llrt_crypto::init(&ctx).expect("crypto init");
+        llrt_process::init(&ctx).expect("process init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");

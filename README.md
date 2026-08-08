@@ -51,13 +51,14 @@ Cherry namespaces, embedded:
 `clojure.test`.
 
 Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
-their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`.
+their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
+`crypto`, `os`, `process`, `zlib`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports.
 
-Globals: `Buffer`, `console`, `fetch`, `Headers`, `Request`,
-`Response`, `FormData`, `setTimeout`, `clearTimeout`, `setInterval`,
-`clearInterval`, `setImmediate`.
+Globals: `Buffer`, `console`, `crypto`, `process`, `fetch`, `Headers`,
+`Request`, `Response`, `FormData`, `setTimeout`, `clearTimeout`,
+`setInterval`, `clearInterval`, `setImmediate`.
 
 `await` works on all promises:
 
@@ -80,6 +81,14 @@ Globals: `Buffer`, `console`, `fetch`, `Headers`, `Request`,
 
 Pin the version in the URL. An unpinned URL stays at the version that
 the first download returned. There is no integrity check.
+
+Node builtin imports in remote modules resolve to the native modules
+above, so npm libraries that use `fs`, `path` or `crypto` work:
+
+```clojure
+(require '["https://esm.sh/@babashka/fs" :as bfs])
+(bfs/slurp "README.md")
+```
 
 ## Build from source
 
