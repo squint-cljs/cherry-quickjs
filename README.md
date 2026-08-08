@@ -31,9 +31,9 @@ user=> (defn foo [x] (inc x))
 #object[foo]
 user=> (foo 41)
 42
-user=> (require '[clojure.string :as s])
+user=> (require '[clojure.string :as str])
 nil
-user=> (s/join "-" (map inc [1 2 3]))
+user=> (str/join "-" (map inc [1 2 3]))
 "2-3-4"
 ```
 
