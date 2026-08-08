@@ -5,6 +5,10 @@ Cherry scripting in a small (~2MB) cross-platform binary. The
 embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
+## Status
+
+Experimental.
+
 ## Install
 
 macOS and Linux:
