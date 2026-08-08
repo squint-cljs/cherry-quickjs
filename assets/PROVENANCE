@@ -1,3 +1,0 @@
-cherry commit: 6dc0ec0281e909c93057f940b7b4e93ee9b0a209
-built with: bb build (shadow-cljs) in the cherry checkout
-files: cljs.core.js from the repo root, lib/*.js from lib/

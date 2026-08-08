@@ -14,7 +14,7 @@ const ROOTS: &[&str] = &[
 ];
 
 fn asset_path(name: &str) -> String {
-    name.replacen("cherry-cljs", "assets", 1)
+    format!("node_modules/{}", name)
 }
 
 fn out_path(name: &str) -> std::path::PathBuf {
@@ -80,7 +80,11 @@ impl Loader for AssetLoader {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=assets");
+    println!("cargo:rerun-if-changed=package.json");
+    println!("cargo:rerun-if-changed=pnpm-lock.yaml");
+    if !Path::new("node_modules/cherry-cljs").exists() {
+        panic!("node_modules/cherry-cljs not found, run `pnpm install` first");
+    }
     let rt = Runtime::new().unwrap();
     rt.set_loader(AssetResolver, AssetLoader);
     let context = Context::full(&rt).unwrap();

@@ -1,0 +1,48 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      cherry-cljs:
+        specifier: 0.6.35
+        version: 0.6.35
+
+packages:
+
+  cherry-cljs@0.6.35:
+    resolution: {integrity: sha512-hm/uQ4h7pCiqTOBFcVZD58G9ofMe3wwhcIWK999ZgU5xhlDKj6ZekS7PyupX+SxGpoTKF4o8z04RJafrY/KL6g==}
+    hasBin: true
+
+  chokidar@4.0.3:
+    resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
+    engines: {node: '>= 14.16.0'}
+
+  readdirp@4.1.2:
+    resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
+    engines: {node: '>= 14.18.0'}
+
+  squint-cljs@0.14.206:
+    resolution: {integrity: sha512-por3ytiUKedGkdZsD9E3TvOo/txPbfhqpYl/VsyIzNPG+LjazUavFaCwTv3zSQ/eT7FpsdwVdhQuPSaUePjgoA==}
+    hasBin: true
+
+snapshots:
+
+  cherry-cljs@0.6.35:
+    dependencies:
+      chokidar: 4.0.3
+      squint-cljs: 0.14.206
+
+  chokidar@4.0.3:
+    dependencies:
+      readdirp: 4.1.2
+
+  readdirp@4.1.2: {}
+
+  squint-cljs@0.14.206:
+    dependencies:
+      chokidar: 4.0.3

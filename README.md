@@ -8,6 +8,7 @@ binary: the JS build of the cherry compiler runs inside an embedded
 ## Build
 
 ```bash
+pnpm install
 cargo build --release
 ```
 
@@ -35,14 +36,10 @@ $ ./target/release/cherry-quickjs -e '(map inc [1 2 3])'
 
 ## How it works
 
-The cherry compiler and standard library from `assets/` are embedded in
-the binary as QuickJS bytecode. Each REPL input is compiled inside the
-engine and evaluated in the same context. Startup is around 17ms.
+The cherry compiler and standard library come from the `cherry-cljs` npm
+package, pinned in package.json, and are embedded in the binary as
+QuickJS bytecode. Each REPL input is compiled inside the engine and
+evaluated in the same context. Startup is around 17ms.
 
-Refresh the assets from a cherry checkout (`bb build` there first) and
-record the commit in assets/PROVENANCE:
-
-```bash
-cp ../cherry/cljs.core.js assets/
-cp ../cherry/lib/{cljs.core,clojure.string,clojure.set,clojure.walk,cljs.pprint,clojure.test,compiler}.js assets/lib/
-```
+Binaries for linux, macOS and Windows are published to the `dev` release
+on every commit.

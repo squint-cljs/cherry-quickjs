@@ -1,0 +1,106 @@
+name: Build cherry-quickjs
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+            platform: linux
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+            platform: linux
+          - os: macos-latest
+            arch: aarch64
+            platform: macos
+          - os: macos-15-intel
+            arch: amd64
+            platform: macos
+          - os: windows-latest
+            arch: amd64
+            platform: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install cherry-cljs
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          out=$(./target/release/cherry-quickjs -e '(str "cherry" "-" "quickjs")')
+          echo "$out"
+          test "$out" = '"cherry-quickjs"'
+
+      - name: Package binary (unix)
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: tar czf cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C target/release cherry-quickjs
+
+      - name: Package binary (windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: 7z a cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.zip ./target/release/cherry-quickjs.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}
+          path: cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.platform == 'windows' && 'zip' || 'tar.gz' }}
+
+  release:
+    needs: build
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create or update dev release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: Development Build
+          prerelease: true
+          make_latest: false
+          files: |
+            cherry-quickjs-linux-amd64.tar.gz
+            cherry-quickjs-linux-aarch64.tar.gz
+            cherry-quickjs-macos-aarch64.tar.gz
+            cherry-quickjs-macos-amd64.tar.gz
+            cherry-quickjs-windows-amd64.zip
+          body: |
+            Rolling development build of cherry-quickjs.
+
+            ```sh
+            tar xzf cherry-quickjs-<platform>-<arch>.tar.gz
+            ./cherry-quickjs -e '(+ 1 2 3)'
+            ```
