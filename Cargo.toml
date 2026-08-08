@@ -1,0 +1,14 @@
+[package]
+name = "cherry-quickjs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rquickjs = { version = "0.12.2", features = ["loader"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

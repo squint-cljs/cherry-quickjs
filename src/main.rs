@@ -1,0 +1,208 @@
+use rquickjs::loader::{ImportAttributes, Loader, Resolver};
+use rquickjs::module::{Declared, Module};
+use rquickjs::{CatchResultExt, Context, Ctx, Error, Function, Promise, Runtime};
+use std::io::{BufRead, Write};
+
+const ASSETS: &[(&str, &str)] = &[
+    ("cherry-cljs/cljs.core.js", include_str!("../assets/cljs.core.js")),
+    ("cherry-cljs/lib/cljs.core.js", include_str!("../assets/lib/cljs.core.js")),
+    ("cherry-cljs/lib/clojure.string.js", include_str!("../assets/lib/clojure.string.js")),
+    ("cherry-cljs/lib/clojure.set.js", include_str!("../assets/lib/clojure.set.js")),
+    ("cherry-cljs/lib/clojure.walk.js", include_str!("../assets/lib/clojure.walk.js")),
+    ("cherry-cljs/lib/cljs.pprint.js", include_str!("../assets/lib/cljs.pprint.js")),
+    ("cherry-cljs/lib/clojure.test.js", include_str!("../assets/lib/clojure.test.js")),
+    ("cherry-cljs/lib/compiler.js", include_str!("../assets/lib/compiler.js")),
+];
+
+fn normalize(path: &str) -> String {
+    let mut out: Vec<&str> = Vec::new();
+    for seg in path.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                out.pop();
+            }
+            s => out.push(s),
+        }
+    }
+    out.join("/")
+}
+
+struct CherryResolver;
+
+impl Resolver for CherryResolver {
+    fn resolve<'js>(
+        &mut self,
+        _ctx: &Ctx<'js>,
+        base: &str,
+        name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
+    ) -> rquickjs::Result<String> {
+        let resolved = if name.starts_with("./") || name.starts_with("../") {
+            let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
+            normalize(&format!("{}/{}", dir, name))
+        } else {
+            name.to_string()
+        };
+        if ASSETS.iter().any(|(n, _)| *n == resolved) {
+            Ok(resolved)
+        } else {
+            Err(Error::new_resolving(base, name))
+        }
+    }
+}
+
+struct CherryLoader;
+
+impl Loader for CherryLoader {
+    fn load<'js>(
+        &mut self,
+        ctx: &Ctx<'js>,
+        name: &str,
+        _attributes: Option<ImportAttributes<'js>>,
+    ) -> rquickjs::Result<Module<'js, Declared>> {
+        let src = ASSETS
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, s)| *s)
+            .ok_or_else(|| Error::new_loading(name))?;
+        Module::declare(ctx.clone(), name, src)
+    }
+}
+
+const CONSOLE_JS: &str = r#"
+globalThis.console = {
+  log: (...args) => __print(args.map(__str).join(' ')),
+  info: (...args) => __print(args.map(__str).join(' ')),
+  warn: (...args) => __print(args.map(__str).join(' ')),
+  error: (...args) => __print(args.map(__str).join(' ')),
+  debug: (...args) => __print(args.map(__str).join(' ')),
+};
+globalThis.__str = (x) => {
+  try { return String(x); }
+  catch (_e) { return Object.prototype.toString.call(x); }
+};
+"#;
+
+const BOOTSTRAP_JS: &str = r#"
+import * as compiler from 'cherry-cljs/lib/compiler.js';
+import * as core from 'cherry-cljs/cljs.core.js';
+const st = { state: null };
+globalThis.__evalCherry = async (code) => {
+  let res;
+  try {
+    res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true}, st.state);
+  } catch (e) {
+    const m = String((e && e.message) || e);
+    if (m.includes('EOF while reading')) return ['incomplete', '', ''];
+    return ['compile-error', m, ''];
+  }
+  st.state = res;
+  const ns = res.ns ? String(res.ns) : 'user';
+  try {
+    const v = await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
+    return ['ok', (v === null || v === undefined) ? 'nil' : core.pr_str(v), ns];
+  } catch (e) {
+    return ['error', __str(e), ns];
+  }
+};
+"#;
+
+fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
+    let run = || -> rquickjs::Result<Vec<String>> {
+        let f: Function = ctx.globals().get("__evalCherry")?;
+        let p: Promise = f.call((code,))?;
+        p.finish::<Vec<String>>()
+    };
+    match run().catch(ctx) {
+        Ok(v) => {
+            let mut it = v.into_iter();
+            (
+                it.next().unwrap_or_default(),
+                it.next().unwrap_or_default(),
+                it.next().unwrap_or_else(|| "user".into()),
+            )
+        }
+        Err(e) => ("error".into(), e.to_string(), "user".into()),
+    }
+}
+
+fn repl(ctx: &Ctx<'_>) {
+    let stdin = std::io::stdin();
+    let mut ns = "user".to_string();
+    let mut buf = String::new();
+    loop {
+        if buf.is_empty() {
+            print!("{}=> ", ns);
+        } else {
+            print!("      ");
+        }
+        std::io::stdout().flush().ok();
+        let mut line = String::new();
+        match stdin.lock().read_line(&mut line) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => {}
+        }
+        if buf.is_empty() && line.trim().is_empty() {
+            continue;
+        }
+        buf.push_str(&line);
+        let (status, payload, new_ns) = eval_cherry(ctx, &buf);
+        match status.as_str() {
+            "incomplete" => continue,
+            "ok" => {
+                println!("{}", payload);
+                ns = new_ns;
+            }
+            "compile-error" => println!("compile error: {}", payload),
+            _ => println!("error: {}", payload),
+        }
+        buf.clear();
+    }
+}
+
+fn main() {
+    let rt = Runtime::new().expect("runtime");
+    rt.set_loader(CherryResolver, CherryLoader);
+    let context = Context::full(&rt).expect("context");
+    let exit_code = context.with(|ctx| {
+        let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
+        ctx.globals().set("__print", print).expect("set __print");
+        ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
+        Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
+            .expect("bootstrap declare")
+            .finish::<()>()
+            .catch(&ctx)
+            .expect("bootstrap eval");
+
+        let args: Vec<String> = std::env::args().collect();
+        if args.get(1).map(String::as_str) == Some("-e") {
+            match args.get(2) {
+                Some(code) => {
+                    let (status, payload, _) = eval_cherry(&ctx, code);
+                    match status.as_str() {
+                        "ok" => {
+                            if payload != "nil" {
+                                println!("{}", payload);
+                            }
+                            0
+                        }
+                        _ => {
+                            eprintln!("error: {}", payload);
+                            1
+                        }
+                    }
+                }
+                None => {
+                    eprintln!("usage: cherry-quickjs [-e expr]");
+                    1
+                }
+            }
+        } else {
+            println!("Cherry QuickJS REPL, Ctrl-D to exit");
+            repl(&ctx);
+            0
+        }
+    });
+    std::process::exit(exit_code);
+}
