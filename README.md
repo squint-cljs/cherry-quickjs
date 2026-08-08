@@ -50,7 +50,7 @@ pnpm install
 cargo build --release
 ```
 
-## Internals
+## Implementation
 
 The compiler and the standard library come from the
 [cherry-cljs](https://www.npmjs.com/package/cherry-cljs) npm package,
