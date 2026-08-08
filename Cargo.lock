@@ -69,7 +69,9 @@ dependencies = [
  "llrt_buffer",
  "llrt_fs",
  "llrt_path",
+ "llrt_timers",
  "rquickjs",
+ "tokio",
 ]
 
 [[package]]
@@ -245,6 +247,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "llrt_context"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0eb4df06dfbfe41aee465176a0fce1823982247230054053642f2f3df76a7449"
+dependencies = [
+ "llrt_build",
+ "llrt_utils_watts",
+ "rquickjs",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "llrt_encoding"
 version = "0.8.1-beta"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -275,6 +290,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "llrt_hooking"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c7cd1f745876fa47c2ea9e14edc44c4ba6dc68154e09a3eb9c834adde793c3f"
+dependencies = [
+ "llrt_utils_watts",
+ "once_cell",
+ "rquickjs",
+]
+
+[[package]]
 name = "llrt_path"
 version = "0.8.1-beta"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -283,6 +309,20 @@ dependencies = [
  "llrt_utils_watts",
  "memchr",
  "rquickjs",
+]
+
+[[package]]
+name = "llrt_timers"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "371aa29ecc3ff576b5dbab7380eb1e399f1139a101ba378c3f6270b74c799a5d"
+dependencies = [
+ "llrt_context",
+ "llrt_hooking",
+ "llrt_utils_watts",
+ "once_cell",
+ "rquickjs",
+ "tokio",
 ]
 
 [[package]]
@@ -304,6 +344,12 @@ name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
+name = "once_cell"
+version = "1.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "outref"
@@ -566,6 +612,18 @@ checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
 dependencies = [
  "bytes",
  "pin-project-lite",
+ "tokio-macros",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "385a6cb71ab9ab790c5fe8d67f1645e6c450a7ce006a33de03daa956cf70a496"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]

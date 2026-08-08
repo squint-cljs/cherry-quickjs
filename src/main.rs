@@ -1,9 +1,12 @@
 use llrt_buffer::BufferModule;
-use llrt_fs::FsModule;
+use llrt_fs::{FsModule, FsPromisesModule};
 use llrt_path::PathModule;
+use llrt_timers::TimersModule;
 use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
-use rquickjs::{CatchResultExt, Context, Ctx, Error, Function, Promise, Runtime};
+use rquickjs::{
+    async_with, AsyncContext, AsyncRuntime, CatchResultExt, Ctx, Error, Function, Promise,
+};
 use std::io::{BufRead, Write};
 
 macro_rules! bytecode {
@@ -116,13 +119,13 @@ globalThis.__evalCherry = async (code) => {
 };
 "#;
 
-fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
-    let run = || -> rquickjs::Result<Vec<String>> {
+async fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
+    let run = async {
         let f: Function = ctx.globals().get("__evalCherry")?;
         let p: Promise = f.call((code,))?;
-        p.finish::<Vec<String>>()
+        p.into_future::<Vec<String>>().await
     };
-    match run().catch(ctx) {
+    match run.await.catch(ctx) {
         Ok(v) => {
             let mut it = v.into_iter();
             (
@@ -135,7 +138,7 @@ fn eval_cherry(ctx: &Ctx<'_>, code: &str) -> (String, String, String) {
     }
 }
 
-fn repl(ctx: &Ctx<'_>) {
+async fn repl(ctx: &Ctx<'_>) {
     let stdin = std::io::stdin();
     let mut ns = "user".to_string();
     let mut buf = String::new();
@@ -155,7 +158,7 @@ fn repl(ctx: &Ctx<'_>) {
             continue;
         }
         buf.push_str(&line);
-        let (status, payload, new_ns) = eval_cherry(ctx, &buf);
+        let (status, payload, new_ns) = eval_cherry(ctx, &buf).await;
         match status.as_str() {
             "incomplete" => continue,
             "ok" => {
@@ -169,10 +172,30 @@ fn repl(ctx: &Ctx<'_>) {
     }
 }
 
-const NODE_MODULES: &[&str] = &["fs", "node:fs", "path", "node:path", "buffer", "node:buffer"];
+const NODE_MODULES: &[&str] = &[
+    "fs",
+    "node:fs",
+    "fs/promises",
+    "node:fs/promises",
+    "path",
+    "node:path",
+    "buffer",
+    "node:buffer",
+    "timers",
+    "node:timers",
+];
 
 fn main() {
-    let rt = Runtime::new().expect("runtime");
+    let exit_code = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .expect("tokio runtime")
+        .block_on(run());
+    std::process::exit(exit_code);
+}
+
+async fn run() -> i32 {
+    let rt = AsyncRuntime::new().expect("runtime");
     let mut builtin = BuiltinResolver::default();
     for name in NODE_MODULES {
         builtin = builtin.with_module(*name);
@@ -180,20 +203,27 @@ fn main() {
     let modules = ModuleLoader::default()
         .with_module("fs", FsModule)
         .with_module("node:fs", FsModule)
+        .with_module("fs/promises", FsPromisesModule)
+        .with_module("node:fs/promises", FsPromisesModule)
         .with_module("path", PathModule)
         .with_module("node:path", PathModule)
         .with_module("buffer", BufferModule)
-        .with_module("node:buffer", BufferModule);
-    rt.set_loader((builtin, CherryResolver), (modules, CherryLoader));
-    let context = Context::full(&rt).expect("context");
-    let exit_code = context.with(|ctx| {
+        .with_module("node:buffer", BufferModule)
+        .with_module("timers", TimersModule)
+        .with_module("node:timers", TimersModule);
+    rt.set_loader((builtin, CherryResolver), (modules, CherryLoader))
+        .await;
+    let context = AsyncContext::full(&rt).await.expect("context");
+    let exit_code = async_with!(context => |ctx| {
         llrt_buffer::init(&ctx).expect("buffer init");
+        llrt_timers::init(&ctx).expect("timers init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
         Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
             .expect("bootstrap declare")
-            .finish::<()>()
+            .into_future::<()>()
+            .await
             .catch(&ctx)
             .expect("bootstrap eval");
 
@@ -205,7 +235,7 @@ fn main() {
         if args.get(1).map(String::as_str) == Some("-e") {
             match args.get(2) {
                 Some(code) => {
-                    let (status, payload, _) = eval_cherry(&ctx, code);
+                    let (status, payload, _) = eval_cherry(&ctx, code).await;
                     match status.as_str() {
                         "ok" => {
                             if payload != "nil" {
@@ -226,9 +256,11 @@ fn main() {
             }
         } else {
             println!("Cherry QuickJS REPL, Ctrl-D to exit");
-            repl(&ctx);
+            repl(&ctx).await;
             0
         }
-    });
-    std::process::exit(exit_code);
+    })
+    .await;
+    rt.idle().await;
+    exit_code
 }
