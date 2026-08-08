@@ -12,3 +12,6 @@ lto = true
 strip = true
 codegen-units = 1
 panic = "abort"
+
+[build-dependencies]
+rquickjs = { version = "0.12.2", features = ["loader"] }

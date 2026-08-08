@@ -3,15 +3,22 @@ use rquickjs::module::{Declared, Module};
 use rquickjs::{CatchResultExt, Context, Ctx, Error, Function, Promise, Runtime};
 use std::io::{BufRead, Write};
 
-const ASSETS: &[(&str, &str)] = &[
-    ("cherry-cljs/cljs.core.js", include_str!("../assets/cljs.core.js")),
-    ("cherry-cljs/lib/cljs.core.js", include_str!("../assets/lib/cljs.core.js")),
-    ("cherry-cljs/lib/clojure.string.js", include_str!("../assets/lib/clojure.string.js")),
-    ("cherry-cljs/lib/clojure.set.js", include_str!("../assets/lib/clojure.set.js")),
-    ("cherry-cljs/lib/clojure.walk.js", include_str!("../assets/lib/clojure.walk.js")),
-    ("cherry-cljs/lib/cljs.pprint.js", include_str!("../assets/lib/cljs.pprint.js")),
-    ("cherry-cljs/lib/clojure.test.js", include_str!("../assets/lib/clojure.test.js")),
-    ("cherry-cljs/lib/compiler.js", include_str!("../assets/lib/compiler.js")),
+macro_rules! bytecode {
+    ($file:literal) => {
+        include_bytes!(concat!(env!("OUT_DIR"), "/", $file))
+    };
+}
+
+// modules precompiled to quickjs bytecode by build.rs
+const ASSETS: &[(&str, &[u8])] = &[
+    ("cherry-cljs/cljs.core.js", bytecode!("cherry-cljs_cljs.core.js")),
+    ("cherry-cljs/lib/cljs.core.js", bytecode!("cherry-cljs_lib_cljs.core.js")),
+    ("cherry-cljs/lib/clojure.string.js", bytecode!("cherry-cljs_lib_clojure.string.js")),
+    ("cherry-cljs/lib/clojure.set.js", bytecode!("cherry-cljs_lib_clojure.set.js")),
+    ("cherry-cljs/lib/clojure.walk.js", bytecode!("cherry-cljs_lib_clojure.walk.js")),
+    ("cherry-cljs/lib/cljs.pprint.js", bytecode!("cherry-cljs_lib_cljs.pprint.js")),
+    ("cherry-cljs/lib/clojure.test.js", bytecode!("cherry-cljs_lib_clojure.test.js")),
+    ("cherry-cljs/lib/compiler.js", bytecode!("cherry-cljs_lib_compiler.js")),
 ];
 
 fn normalize(path: &str) -> String {
@@ -61,12 +68,12 @@ impl Loader for CherryLoader {
         name: &str,
         _attributes: Option<ImportAttributes<'js>>,
     ) -> rquickjs::Result<Module<'js, Declared>> {
-        let src = ASSETS
+        let bytes = ASSETS
             .iter()
             .find(|(n, _)| *n == name)
-            .map(|(_, s)| *s)
+            .map(|(_, b)| *b)
             .ok_or_else(|| Error::new_loading(name))?;
-        Module::declare(ctx.clone(), name, src)
+        unsafe { Module::load(ctx.clone(), bytes) }
     }
 }
 
