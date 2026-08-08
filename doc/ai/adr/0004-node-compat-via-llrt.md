@@ -65,5 +65,5 @@ not while the REPL waits for input. Async stdin would fix this.
   approaches compose: llrt modules for trusted built-ins, wasm plugins
   for untrusted third-party capabilities. Gating llrt fs behind a flag
   (or a path filter) is future work.
-- fetch is the natural next module (llrt provides it), behind an
-  --allow-net style flag.
+- fetch, Response, Request and Headers come from llrt_fetch, ungated.
+  hyper and rustls grow the binary to 3.7MB.

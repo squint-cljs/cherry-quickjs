@@ -187,7 +187,7 @@ const NODE_MODULES: &[&str] = &[
 
 fn main() {
     let exit_code = tokio::runtime::Builder::new_current_thread()
-        .enable_time()
+        .enable_all()
         .build()
         .expect("tokio runtime")
         .block_on(run());
@@ -217,6 +217,7 @@ async fn run() -> i32 {
     let exit_code = async_with!(context => |ctx| {
         llrt_buffer::init(&ctx).expect("buffer init");
         llrt_timers::init(&ctx).expect("timers init");
+        llrt_fetch::init(&ctx).expect("fetch init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
