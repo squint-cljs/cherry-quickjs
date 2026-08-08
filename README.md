@@ -68,6 +68,19 @@ Globals: `Buffer`, `console`, `fetch`, `Headers`, `Request`,
 (-> (await (js/fetch "https://api.github.com/zen")) (.text) await)
 ```
 
+## URL imports
+
+`https://` specifiers load like in Deno. Downloads cache in
+`~/.cache/cherry-quickjs`:
+
+```clojure
+(require '["https://esm.sh/lodash-es@4.17.21" :as l])
+(l/camelCase "foo bar")
+```
+
+Pin the version in the URL. An unpinned URL stays at the version that
+the first download returned. There is no integrity check.
+
 ## Build from source
 
 ```sh
