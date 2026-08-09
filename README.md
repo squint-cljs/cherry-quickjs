@@ -105,12 +105,12 @@ happened.
 
 ## HTTP server
 
-`cherry.http/serve` starts an HTTP server on 127.0.0.1. The handler
+`choq.http/serve` starts an HTTP server on 127.0.0.1. The handler
 takes a fetch API `Request` and returns a `Response`, or a promise of
 one:
 
 ```clojure
-(require '[cherry.http :refer [serve]])
+(require '[choq.http :refer [serve]])
 
 (serve (fn [req] (js/Response. "hello")) {:port 3000})
 ```
@@ -119,7 +119,7 @@ A Hono app plugs in directly:
 
 ```clojure
 (require '["https://esm.sh/hono" :refer [Hono]]
-         '[cherry.http :refer [serve]])
+         '[choq.http :refer [serve]])
 
 (def app (Hono.))
 (.get app "/" (fn [c] (.text c "hello from hono")))
@@ -128,7 +128,7 @@ A Hono app plugs in directly:
 ```
 
 A running server keeps the process alive. JS modules import the same
-API from `cherry:http`.
+API from `choq:http`.
 
 ## URL imports
 

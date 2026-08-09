@@ -1,7 +1,7 @@
 ;; web server with hono from esm.sh
 ;; run with: choq examples/hono.cljs
 (require '["https://esm.sh/hono" :refer [Hono]]
-         '[cherry.http :refer [serve]])
+         '[choq.http :refer [serve]])
 
 (def app (Hono.))
 

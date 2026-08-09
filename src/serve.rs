@@ -1,4 +1,4 @@
-// cherry.http/serve: hyper accepts connections and hands requests to
+// choq.http/serve: hyper accepts connections and hands requests to
 // the js context over a channel, the response travels back over a oneshot
 
 use rquickjs::{async_with, AsyncContext, CatchResultExt, Ctx, Error, Exception, Function, Promise, TypedArray};
@@ -16,7 +16,7 @@ pub struct ServeRequest {
 
 pub type ServeSender = tokio::sync::mpsc::UnboundedSender<ServeRequest>;
 
-const CHERRY_HTTP_JS: &str = r#"
+const CHOQ_HTTP_JS: &str = r#"
 import * as core from 'cherry-cljs/cljs.core.js';
 const portk = core.keyword('port');
 export function serve(handler, opts) {
@@ -29,14 +29,14 @@ export function serve(handler, opts) {
   globalThis.__serveHandlers[port] = handler;
   __listen(port);
 }
-// cherry resolves (require '[cherry.http ...]) through globalThis
-globalThis.cherry = globalThis.cherry || {};
-globalThis.cherry.http = { serve };
+// cherry resolves (require '[choq.http ...]) through globalThis
+globalThis.choq = globalThis.choq || {};
+globalThis.choq.http = { serve };
 "#;
 
 pub const JS_MODULES: &[(&str, &str)] = &[
-    ("cherry.http", CHERRY_HTTP_JS),
-    ("cherry:http", CHERRY_HTTP_JS),
+    ("choq.http", CHOQ_HTTP_JS),
+    ("choq:http", CHOQ_HTTP_JS),
 ];
 
 const GLUE_JS: &str = r#"
