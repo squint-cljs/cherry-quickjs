@@ -1,32 +1,120 @@
 #!/usr/bin/env bash
-# Installs the latest choq dev build into the current directory.
-# Usage: install [--dir <dir>]
+# Installs the latest choq dev build. Installation directory defaults to
+# /usr/local/bin.
+# Usage: install [--dir <dir>] [--download-dir <dir>]
 set -euo pipefail
 
 repo="squint-cljs/choq"
-dir="."
-if [ "${1:-}" = "--dir" ]; then
-  dir="${2:?--dir needs an argument}"
+default_install_dir="/usr/local/bin"
+install_dir="$default_install_dir"
+download_dir=""
+
+print_help() {
+    echo "Installs latest choq dev build. Installation directory defaults to $default_install_dir."
+    echo -e
+    echo "Usage: install [--dir <dir>] [--download-dir <download-dir>]"
+    exit 1
+}
+
+has() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+fetch() {
+    local url=$1
+    local outfile=${2:-}
+
+    if has wget; then
+        if [[ -n $outfile ]]; then
+            wget -qO "$outfile" "$url"
+        else
+            wget -qO - "$url"
+        fi
+    elif has curl; then
+        if [[ -n $outfile ]]; then
+            curl -fsSL "$url" -o "$outfile"
+        else
+            curl -fsSL "$url"
+        fi
+    else
+        >&2 echo "Either 'wget' or 'curl' needs to be on PATH!"
+        exit 1
+    fi
+}
+
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+    case "$key" in
+        --dir)
+            install_dir="${2:?--dir needs an argument}"
+            shift
+            shift
+            ;;
+        --download-dir)
+            download_dir="${2:?--download-dir needs an argument}"
+            shift
+            shift
+            ;;
+        *)
+            print_help
+            ;;
+    esac
+done
+
+if [[ -z "$download_dir" ]]; then
+    download_dir="$(mktemp -d)"
+    trap 'rm -rf "$download_dir"' EXIT
 fi
 
+version=$(fetch "https://raw.githubusercontent.com/$repo/main/Cargo.toml" \
+    | grep -m1 '^version' | cut -d '"' -f2)
+
 case "$(uname -s)" in
-  Darwin) platform="macos" ;;
-  Linux) platform="linux" ;;
-  *) echo "unsupported OS: $(uname -s)" >&2; exit 1 ;;
+    Linux*) platform=linux;;
+    FreeBSD*) platform=linux;;
+    Darwin*) platform=macos;;
+    # Windows bash-likes: Git Bash, MSYS, Cygwin, Github Actions
+    MINGW64*) platform=windows;;
+    MSYS_NT*) platform=windows;;
+    CYGWIN*) platform=windows;;
+    *) >&2 echo "unsupported OS: $(uname -s)"; exit 1;;
 esac
 
 case "$(uname -m)" in
-  arm64|aarch64) arch="aarch64" ;;
-  x86_64) arch="amd64" ;;
-  *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+    arm64|aarch64) arch=aarch64;;
+    x86_64) arch=amd64;;
+    *) >&2 echo "unsupported architecture: $(uname -m)"; exit 1;;
 esac
 
-version=$(curl -sL "https://raw.githubusercontent.com/$repo/main/Cargo.toml" \
-  | grep -m1 '^version' | cut -d '"' -f2)
+if [[ "$platform" == "windows" ]]; then
+    ext="zip"
+    util="$(which unzip) -qqo"
+    binary="choq.exe"
+else
+    ext="tar.gz"
+    util="$(which tar) -zxf"
+    binary="choq"
+fi
 
-archive="choq-$version-$platform-$arch.tar.gz"
-url="https://github.com/$repo/releases/download/dev/$archive"
+filename="choq-$version-$platform-$arch.$ext"
+download_url="https://github.com/$repo/releases/download/dev/$filename"
 
-echo "Downloading $url"
-curl -sL --fail "$url" | tar xz -C "$dir"
-echo "Installed $dir/choq ($version)"
+mkdir -p "$download_dir" && (
+    cd "$download_dir"
+    echo "Downloading $download_url"
+    fetch "$download_url" "$filename"
+    $util "$filename"
+    rm -f "$filename"
+)
+
+if [[ "$download_dir" != "$install_dir" ]]; then
+    mkdir -p "$install_dir"
+    if [ -f "$install_dir/$binary" ]; then
+        echo "Moving $install_dir/$binary to $install_dir/$binary.old"
+        mv -f "$install_dir/$binary" "$install_dir/$binary.old"
+    fi
+    mv -f "$download_dir/$binary" "$install_dir/$binary"
+fi
+
+echo "Successfully installed $binary in $install_dir ($version)"

@@ -14,16 +14,16 @@ Experimental.
 
 ## Install
 
-macOS and Linux. The script downloads the `choq` binary into the
-current directory, or into the directory given with `--dir`:
+The script installs `choq` into `/usr/local/bin`. Use `sudo` when that
+directory is not writable, or pick another directory with `--dir`:
 
 ```sh
-curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash
-# into a specific directory:
+curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | sudo bash
+# into a specific directory, no sudo:
 curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash -s -- --dir ~/bin
 ```
 
-On Windows, download the zip from the
+Works on macOS, Linux and Windows (Git Bash). The zip is also on the
 [dev release](https://github.com/squint-cljs/choq/releases/tag/dev).
 
 ## Usage
