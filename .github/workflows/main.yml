@@ -59,6 +59,12 @@ jobs:
           echo "$out"
           test "$out" = '"cherry-quickjs"'
 
+      - name: Run tests
+        shell: bash
+        run: |
+          ./target/release/cherry-quickjs test/nrepl_test.cljs
+          ./target/release/cherry-quickjs test/stream_test.cljs
+
       - name: Package binary (unix)
         if: matrix.platform != 'windows'
         shell: bash

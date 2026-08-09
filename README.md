@@ -68,7 +68,9 @@ Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
 their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
 `tty`, `crypto`, `net`, `os`, `process`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
-functions that each module supports.
+functions that each module supports. `stream`, `events` and
+`string_decoder` are vendored js implementations
+([readable-stream](https://github.com/nodejs/readable-stream)).
 
 Globals: `Buffer`, `console`, `crypto`, `process`, `fetch`, `Headers`,
 `Request`, `Response`, `FormData`, `setTimeout`, `clearTimeout`,

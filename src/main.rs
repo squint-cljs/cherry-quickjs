@@ -46,12 +46,26 @@ export const existsSync = (p) => { try { fs.accessSync(p); return true; } catch 
 export default Object.assign({}, fs.default, { existsSync });
 "#;
 
+// node:stream is the vendored readable-stream bundle; its internal
+// require('stream') resolves back here lazily, so the cycle is safe
+const STREAM_JS: &str = r#"
+export * from 'vendor:readable-stream';
+export { default } from 'vendor:readable-stream';
+"#;
+
 // js-implemented builtins; empty source = import-satisfying stub
 const JS_BUILTINS: &[(&str, &str)] = &[
     ("child_process", ""),
     ("node:child_process", ""),
     ("fs", FS_WRAPPER_JS),
     ("node:fs", FS_WRAPPER_JS),
+    ("stream", STREAM_JS),
+    ("node:stream", STREAM_JS),
+    ("vendor:readable-stream", include_str!("../vendor/readable-stream.mjs")),
+    ("events", include_str!("../vendor/events.mjs")),
+    ("node:events", include_str!("../vendor/events.mjs")),
+    ("string_decoder", include_str!("../vendor/string_decoder.mjs")),
+    ("node:string_decoder", include_str!("../vendor/string_decoder.mjs")),
 ];
 
 fn normalize(path: &str) -> String {
@@ -220,6 +234,10 @@ impl Loader for CherryLoader {
 
 // llrt Buffer.indexOf only supports number needles; add string/Buffer
 const POLYFILL_JS: &str = r#"
+globalThis.global = globalThis;
+if (!process.nextTick) {
+  process.nextTick = (fn, ...args) => queueMicrotask(() => fn(...args));
+}
 {
   const orig = Buffer.prototype.indexOf;
   Buffer.prototype.indexOf = function (needle, offset, encoding) {
