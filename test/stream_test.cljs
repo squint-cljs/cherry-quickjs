@@ -45,5 +45,6 @@
   (testing "PassThrough passes written data through"
     (is (= ["hello"] passthrough-result))))
 
-(def summary (t/run-tests))
-(js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))
+(when-not (.-__testRunner js/globalThis)
+  (let [summary (t/run-tests)]
+    (js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))))

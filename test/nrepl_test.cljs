@@ -185,5 +185,6 @@
   (testing "an unknown op reports unknown-op"
     (is (contains? (statuses (:unknown results)) "unknown-op"))))
 
-(def summary (t/run-tests))
-(js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))
+(when-not (.-__testRunner js/globalThis)
+  (let [summary (t/run-tests)]
+    (js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))))

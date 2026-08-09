@@ -163,7 +163,7 @@ cargo build --release
 Run the tests:
 
 ```sh
-target/debug/choq test/nrepl_test.cljs
+target/debug/choq test/run_tests.cljs
 ```
 
 ## Implementation

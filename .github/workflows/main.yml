@@ -62,8 +62,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          ./target/release/choq test/nrepl_test.cljs
-          ./target/release/choq test/stream_test.cljs
+          ./target/release/choq test/run_tests.cljs
 
       - name: Package binary (unix)
         if: matrix.platform != 'windows'
