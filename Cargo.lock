@@ -213,6 +213,7 @@ dependencies = [
  "llrt_process",
  "llrt_timers",
  "llrt_tty",
+ "llrt_zlib",
  "rquickjs",
  "sha2",
  "tokio",
@@ -1425,6 +1426,19 @@ dependencies = [
  "tokio",
  "tracing",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "llrt_zlib"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f3543408f47393060f5140e74aa6662325062b23a0cdfbfe579cfc43318700e"
+dependencies = [
+ "llrt_buffer",
+ "llrt_compression",
+ "llrt_context",
+ "llrt_utils_watts",
+ "rquickjs",
 ]
 
 [[package]]
