@@ -130,7 +130,7 @@ import the same API from `cherry:http`.
 ```
 
 Pin the version in the URL. An unpinned URL stays at the version that
-the first download returned. There is no integrity check.
+the first download returned.
 
 Downloads send a Node user agent, so esm.sh serves node builds instead
 of browser builds. Node builtin imports in remote modules (`node:fs`
