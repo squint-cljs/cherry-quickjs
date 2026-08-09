@@ -542,7 +542,7 @@ async fn run() -> i32 {
                 }
             }
         } else {
-            println!("choq REPL, Ctrl-D to exit");
+            println!("Choq REPL, Ctrl-D to exit");
             repl(&ctx).await;
             0
         }

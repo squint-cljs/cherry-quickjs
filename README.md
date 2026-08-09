@@ -30,7 +30,7 @@ Works on macOS, Linux and Windows (Git Bash). The zip is also on the
 
 ```sh
 $ choq
-choq REPL, Ctrl-D to exit
+Choq REPL, Ctrl-D to exit
 user=> (defn foo [x] (inc x))
 #object[foo]
 user=> (foo 41)
