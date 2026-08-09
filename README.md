@@ -10,6 +10,19 @@ compiler inside an embedded
 
 Experimental.
 
+## When to use choq
+
+Choq trades peak performance for size and memory. QuickJS has no JIT,
+so hot code runs slower than on Node.js, Bun or Deno, but the binary
+is small, startup is fast and memory use stays low: in local
+measurements a Hono app serves around 30k requests/s and uses less
+memory than the same app on Node.js or Bun.
+
+Use it as a lighter alternative to Node.js for scripts and small
+servers, in the same spirit as babashka next to the JVM: personal
+projects on a VPS, small boards like a Raspberry Pi, or anywhere a
+full JS runtime is too heavy.
+
 ## Install
 
 The install script puts `choq` in `/usr/local/bin`. Use `sudo` when
