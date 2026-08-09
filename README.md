@@ -1,11 +1,9 @@
 # Choq
 
-Choq (Cherry on QuickJS): Clojure-flavored scripting in a ~5MB
-binary, chock full of goodies.
-
-This
-runs the [cherry](https://github.com/squint-cljs/cherry) inside an
-embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
+Choq (Cherry on QuickJS): a ~5MB binary chock full of scripting
+goodies. The [cherry](https://github.com/squint-cljs/cherry) compiler
+runs inside an embedded
+[QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
 ## Status
