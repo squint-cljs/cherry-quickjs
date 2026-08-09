@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Installs the latest cherry-quickjs dev build into the current directory.
+# Installs the latest choq dev build into the current directory.
 # Usage: install [--dir <dir>]
 set -euo pipefail
 
-repo="squint-cljs/cherry-quickjs"
+repo="squint-cljs/choq"
 dir="."
 if [ "${1:-}" = "--dir" ]; then
   dir="${2:?--dir needs an argument}"
@@ -24,9 +24,9 @@ esac
 version=$(curl -sL "https://raw.githubusercontent.com/$repo/main/Cargo.toml" \
   | grep -m1 '^version' | cut -d '"' -f2)
 
-archive="cherry-quickjs-$version-$platform-$arch.tar.gz"
+archive="choq-$version-$platform-$arch.tar.gz"
 url="https://github.com/$repo/releases/download/dev/$archive"
 
 echo "Downloading $url"
 curl -sL --fail "$url" | tar xz -C "$dir"
-echo "Installed $dir/cherry-quickjs ($version)"
+echo "Installed $dir/choq ($version)"

@@ -1,5 +1,5 @@
 ;; render markdown to html with markdown-it from esm.sh
-;; run with: cherry-quickjs examples/markdown.cljs
+;; run with: choq examples/markdown.cljs
 (require '["https://esm.sh/markdown-it@14.1.0$default" :as MarkdownIt])
 
 (def md (MarkdownIt.))

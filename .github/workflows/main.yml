@@ -1,4 +1,4 @@
-name: Build cherry-quickjs
+name: Build choq
 
 on:
   workflow_dispatch:
@@ -55,31 +55,31 @@ jobs:
       - name: Smoke test
         shell: bash
         run: |
-          out=$(./target/release/cherry-quickjs -e '(str "cherry" "-" "quickjs")')
+          out=$(./target/release/choq -e '(str "ch" "oq")')
           echo "$out"
-          test "$out" = '"cherry-quickjs"'
+          test "$out" = '"choq"'
 
       - name: Run tests
         shell: bash
         run: |
-          ./target/release/cherry-quickjs test/nrepl_test.cljs
-          ./target/release/cherry-quickjs test/stream_test.cljs
+          ./target/release/choq test/nrepl_test.cljs
+          ./target/release/choq test/stream_test.cljs
 
       - name: Package binary (unix)
         if: matrix.platform != 'windows'
         shell: bash
-        run: tar czf cherry-quickjs-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C target/release cherry-quickjs
+        run: tar czf choq-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz -C target/release choq
 
       - name: Package binary (windows)
         if: matrix.platform == 'windows'
         shell: bash
-        run: 7z a cherry-quickjs-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.zip ./target/release/cherry-quickjs.exe
+        run: 7z a choq-$VERSION-${{ matrix.platform }}-${{ matrix.arch }}.zip ./target/release/choq.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cherry-quickjs-${{ matrix.platform }}-${{ matrix.arch }}
-          path: cherry-quickjs-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.platform == 'windows' && 'zip' || 'tar.gz' }}
+          name: choq-${{ matrix.platform }}-${{ matrix.arch }}
+          path: choq-${{ env.VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.platform == 'windows' && 'zip' || 'tar.gz' }}
 
   release:
     needs: build
@@ -102,14 +102,14 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            cherry-quickjs-*.tar.gz
-            cherry-quickjs-*.zip
+            choq-*.tar.gz
+            choq-*.zip
           body: |
-            Rolling development build of cherry-quickjs.
+            Rolling development build of choq.
 
             ```sh
-            tar xzf cherry-quickjs-<version>-<platform>-<arch>.tar.gz
-            ./cherry-quickjs -e '(+ 1 2 3)'
+            tar xzf choq-<version>-<platform>-<arch>.tar.gz
+            ./choq -e '(+ 1 2 3)'
             ```
 
       - name: Prune old release assets

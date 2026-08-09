@@ -1,4 +1,4 @@
-;; smoke test for node:stream, run with: cherry-quickjs test/stream_test.cljs
+;; smoke test for node:stream, run with: choq test/stream_test.cljs
 (require '["node:stream" :refer [PassThrough Readable Writable]]
          '[clojure.test :as t :refer [deftest is testing]])
 

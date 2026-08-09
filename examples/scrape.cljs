@@ -1,5 +1,5 @@
 ;; scrape hacker news titles: fetch + cheerio (slim build) from esm.sh
-;; run with: cherry-quickjs examples/scrape.cljs
+;; run with: choq examples/scrape.cljs
 (require '["https://esm.sh/cheerio@1.0.0/slim" :as cheerio])
 
 #_:clj-kondo/ignore

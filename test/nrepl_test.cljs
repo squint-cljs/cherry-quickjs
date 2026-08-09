@@ -1,4 +1,4 @@
-;; integration test for --nrepl, run with: cherry-quickjs test/nrepl_test.cljs
+;; integration test for --nrepl, run with: choq test/nrepl_test.cljs
 (require '["net" :as net]
          '[clojure.string :as str]
          '[clojure.test :as t :refer [deftest is testing]])

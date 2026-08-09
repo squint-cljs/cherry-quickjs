@@ -1,6 +1,7 @@
-# cherry-quickjs
+# choq
 
-Cherry scripting in a small (~4MB) cross-platform binary. The
+choq (cherry on quickjs): Clojure-flavored scripting in a ~5MB
+cross-platform binary, chock full of goodies. The
 [cherry](https://github.com/squint-cljs/cherry) compiler runs inside an
 embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
@@ -14,19 +15,19 @@ Experimental.
 macOS and Linux:
 
 ```sh
-curl -sL https://raw.githubusercontent.com/squint-cljs/cherry-quickjs/main/install | bash
+curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash
 # or into a specific directory:
-curl -sL https://raw.githubusercontent.com/squint-cljs/cherry-quickjs/main/install | bash -s -- --dir ~/bin
+curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash -s -- --dir ~/bin
 ```
 
 On Windows, download the zip from the
-[dev release](https://github.com/squint-cljs/cherry-quickjs/releases/tag/dev).
+[dev release](https://github.com/squint-cljs/choq/releases/tag/dev).
 
 ## Usage
 
 ```sh
-$ cherry-quickjs
-Cherry QuickJS REPL, Ctrl-D to exit
+$ choq
+choq REPL, Ctrl-D to exit
 user=> (defn foo [x] (inc x))
 #object[foo]
 user=> (foo 41)
@@ -40,22 +41,22 @@ user=> (str/join "-" (map inc [1 2 3]))
 `-e` evaluates one expression and prints the non-nil result:
 
 ```sh
-$ cherry-quickjs -e '(map inc [1 2 3])'
+$ choq -e '(map inc [1 2 3])'
 (2 3 4)
 ```
 
 A file argument runs the file:
 
 ```sh
-$ cherry-quickjs script.cljs
+$ choq script.cljs
 ```
 
 `--nrepl` starts an nREPL server and writes `.nrepl-port` for editor
 connections:
 
 ```sh
-$ cherry-quickjs --nrepl        # port 1339
-$ cherry-quickjs --nrepl 7888
+$ choq --nrepl        # port 1339
+$ choq --nrepl 7888
 ```
 
 ## API
@@ -118,7 +119,7 @@ import the same API from `cherry:http`.
 ## URL imports
 
 `https://` specifiers load like in Deno. Downloads cache in
-`~/.cache/cherry-quickjs`:
+`~/.cache/choq`:
 
 ```clojure
 (require '["https://esm.sh/lodash-es@4.17.21" :as l])
@@ -148,7 +149,7 @@ cargo build --release
 Run the tests:
 
 ```sh
-target/debug/cherry-quickjs test/nrepl_test.cljs
+target/debug/choq test/nrepl_test.cljs
 ```
 
 ## Implementation

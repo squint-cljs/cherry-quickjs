@@ -85,7 +85,7 @@ fn normalize(path: &str) -> String {
 //// url imports
 //
 // https:// specifiers load like in deno: the loader downloads the module
-// and caches it under ~/.cache/cherry-quickjs, keyed by the url hash.
+// and caches it under ~/.cache/choq, keyed by the url hash.
 // Imports inside a remote module resolve against its url.
 
 fn is_url(s: &str) -> bool {
@@ -116,7 +116,7 @@ fn url_cache_path(url: &str) -> Option<std::path::PathBuf> {
         .iter()
         .map(|b| format!("{:02x}", b))
         .collect();
-    Some(std::path::Path::new(&home).join(".cache/cherry-quickjs").join(hex))
+    Some(std::path::Path::new(&home).join(".cache/choq").join(hex))
 }
 
 fn fetch_url(url: &str) -> Result<String, String> {
@@ -385,12 +385,21 @@ const NODE_MODULES: &[&str] = &[
 ];
 
 fn main() {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("tokio runtime");
-    let local = tokio::task::LocalSet::new();
-    let exit_code = local.block_on(&rt, run());
+    // the quickjs stack limit is 4MB; the windows main thread only gets
+    // 1MB, so run everything on a thread with an explicit stack size
+    let exit_code = std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(|| {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
+            let local = tokio::task::LocalSet::new();
+            local.block_on(&rt, run())
+        })
+        .expect("main thread")
+        .join()
+        .expect("main thread panicked");
     std::process::exit(exit_code);
 }
 
@@ -451,7 +460,7 @@ async fn run() -> i32 {
 
         let args: Vec<String> = std::env::args().collect();
         if args.get(1).map(String::as_str) == Some("--version") {
-            println!("cherry-quickjs {}", env!("CARGO_PKG_VERSION"));
+            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
             return 0;
         }
         if args.get(1).map(String::as_str) == Some("--nrepl") {
@@ -508,7 +517,7 @@ async fn run() -> i32 {
                     }
                 }
                 None => {
-                    eprintln!("usage: cherry-quickjs [-e expr] [--nrepl [port]] [file]");
+                    eprintln!("usage: choq [-e expr] [--nrepl [port]] [file]");
                     1
                 }
             }
@@ -533,7 +542,7 @@ async fn run() -> i32 {
                 }
             }
         } else {
-            println!("Cherry QuickJS REPL, Ctrl-D to exit");
+            println!("choq REPL, Ctrl-D to exit");
             repl(&ctx).await;
             0
         }

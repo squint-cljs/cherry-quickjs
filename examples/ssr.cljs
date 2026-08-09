@@ -1,5 +1,5 @@
 ;; server-side rendering with preact from esm.sh
-;; run with: cherry-quickjs examples/ssr.cljs
+;; run with: choq examples/ssr.cljs
 (require '["https://esm.sh/preact-render-to-string@6.5.11?deps=preact@10.24.3" :refer [render]]
          '["https://esm.sh/preact@10.24.3" :refer [h]])
 
