@@ -1,10 +1,10 @@
 # Choq
 
-Choq (Cherry on QuickJS): a ~5MB binary chock full of scripting
-goodies.
+Choq: Cherry on QuickJS
 
-This
-runs the [cherry](https://github.com/squint-cljs/cherry) inside an
+A ~5MB binary chock full of scripting goodies.
+
+This runs the [cherry](https://github.com/squint-cljs/cherry) inside an
 embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
