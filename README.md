@@ -1,8 +1,10 @@
 # Choq
 
 Choq (Cherry on QuickJS): Clojure-flavored scripting in a ~5MB
-binary, chock full of goodies. The
-[cherry](https://github.com/squint-cljs/cherry) compiler runs inside an
+binary, chock full of goodies.
+
+This
+runs the [cherry](https://github.com/squint-cljs/cherry) inside an
 embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
@@ -12,11 +14,12 @@ Experimental.
 
 ## Install
 
-macOS and Linux:
+macOS and Linux. The script downloads the `choq` binary into the
+current directory, or into the directory given with `--dir`:
 
 ```sh
 curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash
-# or into a specific directory:
+# into a specific directory:
 curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash -s -- --dir ~/bin
 ```
 
