@@ -463,6 +463,10 @@ async fn run() -> i32 {
             println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
             return 0;
         }
+        if matches!(args.get(1).map(String::as_str), Some("--help") | Some("-h")) {
+            println!("usage: choq [-e expr] [--nrepl [port]] [file]");
+            return 0;
+        }
         if args.get(1).map(String::as_str) == Some("--nrepl") {
             // explicit port is used as given; the default falls back to a
             // free port when 1339 is taken
@@ -522,6 +526,11 @@ async fn run() -> i32 {
                 }
             }
         } else if let Some(file) = args.get(1) {
+            if file.starts_with('-') {
+                eprintln!("unknown option: {}", file);
+                eprintln!("usage: choq [-e expr] [--nrepl [port]] [file]");
+                return 1;
+            }
             match std::fs::read_to_string(file) {
                 Ok(code) => {
                     let (status, payload, _) = eval_cherry(&ctx, &code).await;
