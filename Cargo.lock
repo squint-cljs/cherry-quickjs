@@ -207,6 +207,7 @@ dependencies = [
  "llrt_crypto",
  "llrt_fetch",
  "llrt_fs",
+ "llrt_net",
  "llrt_os",
  "llrt_path",
  "llrt_process",
@@ -1292,6 +1293,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "llrt_net"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9be1d328bf1de32eb2a9067532355924ce306a7e8db110d18e446894245f382a"
+dependencies = [
+ "itoa",
+ "llrt_buffer",
+ "llrt_context",
+ "llrt_events",
+ "llrt_stream",
+ "llrt_utils_watts",
+ "rquickjs",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "llrt_os"
 version = "0.8.1-beta"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1331,6 +1349,20 @@ dependencies = [
  "libc",
  "llrt_utils_watts",
  "rquickjs",
+]
+
+[[package]]
+name = "llrt_stream"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07b2787da20fa2b67b5cd80b16b5e1dd78c31d6aa9f00fd43c45dd35cfaa739d"
+dependencies = [
+ "llrt_buffer",
+ "llrt_context",
+ "llrt_events",
+ "llrt_utils_watts",
+ "rquickjs",
+ "tokio",
 ]
 
 [[package]]

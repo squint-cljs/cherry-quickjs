@@ -11,7 +11,12 @@ const ROOTS: &[&str] = &[
     "cherry-cljs/lib/clojure.set.js",
     "cherry-cljs/lib/cljs.pprint.js",
     "cherry-cljs/lib/clojure.test.js",
+    "cherry-cljs/lib/node.nrepl_server.js",
 ];
+
+// node builtins the runtime provides; declared empty here so bytecode
+// compiles, never written to disk
+const BUILTIN_STUBS: &[&str] = &["net", "fs", "path", "crypto", "child_process"];
 
 fn asset_path(name: &str) -> String {
     format!("node_modules/{}", name)
@@ -73,6 +78,9 @@ impl Loader for AssetLoader {
         ctx: &Ctx<'js>,
         name: &str,
     ) -> rquickjs::Result<Module<'js, Declared>> {
+        if BUILTIN_STUBS.contains(&name) {
+            return Module::declare(ctx.clone(), name, "");
+        }
         declare_and_write(ctx, name)
     }
 }

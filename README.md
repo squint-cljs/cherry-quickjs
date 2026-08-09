@@ -50,6 +50,14 @@ A file argument runs the file:
 $ cherry-quickjs script.cljs
 ```
 
+`--nrepl` starts an nREPL server and writes `.nrepl-port` for editor
+connections:
+
+```sh
+$ cherry-quickjs --nrepl        # port 1339
+$ cherry-quickjs --nrepl 7888
+```
+
 ## API
 
 Cherry namespaces, embedded:
@@ -58,7 +66,7 @@ Cherry namespaces, embedded:
 
 Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
 their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
-`tty`, `crypto`, `os`, `process`.
+`tty`, `crypto`, `net`, `os`, `process`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports.
 

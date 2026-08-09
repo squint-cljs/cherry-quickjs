@@ -1,6 +1,7 @@
 use llrt_buffer::BufferModule;
 use llrt_crypto::CryptoModule;
 use llrt_fs::{FsModule, FsPromisesModule};
+use llrt_net::NetModule;
 use llrt_os::OsModule;
 use llrt_path::PathModule;
 use llrt_process::ProcessModule;
@@ -31,6 +32,26 @@ const ASSETS: &[(&str, &[u8])] = &[
     ("cherry-cljs/lib/cljs.pprint.js", bytecode!("cherry-cljs_lib_cljs.pprint.js")),
     ("cherry-cljs/lib/clojure.test.js", bytecode!("cherry-cljs_lib_clojure.test.js")),
     ("cherry-cljs/lib/compiler.js", bytecode!("cherry-cljs_lib_compiler.js")),
+    ("cherry-cljs/lib/compiler.node.js", bytecode!("cherry-cljs_lib_compiler.node.js")),
+    ("cherry-cljs/lib/node.js", bytecode!("cherry-cljs_lib_node.js")),
+    ("cherry-cljs/lib/node.nrepl_server.js", bytecode!("cherry-cljs_lib_node.nrepl_server.js")),
+];
+
+// llrt_fs lacks existsSync; the native module registers as llrt:fs and
+// this wrapper fills the gap
+const FS_WRAPPER_JS: &str = r#"
+import * as fs from 'llrt:fs';
+export * from 'llrt:fs';
+export const existsSync = (p) => { try { fs.accessSync(p); return true; } catch (e) { return false; } };
+export default Object.assign({}, fs.default, { existsSync });
+"#;
+
+// js-implemented builtins; empty source = import-satisfying stub
+const JS_BUILTINS: &[(&str, &str)] = &[
+    ("child_process", ""),
+    ("node:child_process", ""),
+    ("fs", FS_WRAPPER_JS),
+    ("node:fs", FS_WRAPPER_JS),
 ];
 
 fn normalize(path: &str) -> String {
@@ -119,7 +140,11 @@ impl Resolver for CherryResolver {
         base: &str,
         name: &str,
     ) -> rquickjs::Result<String> {
-        if serve::JS_MODULES.iter().any(|(n, _)| *n == name) {
+        if serve::JS_MODULES
+            .iter()
+            .chain(JS_BUILTINS)
+            .any(|(n, _)| *n == name)
+        {
             return Ok(name.to_string());
         }
         if is_url(name) || is_url(base) {
@@ -172,7 +197,11 @@ impl Loader for CherryLoader {
         ctx: &Ctx<'js>,
         name: &str,
     ) -> rquickjs::Result<Module<'js, Declared>> {
-        if let Some((_, src)) = serve::JS_MODULES.iter().find(|(n, _)| *n == name) {
+        if let Some((_, src)) = serve::JS_MODULES
+            .iter()
+            .chain(JS_BUILTINS)
+            .find(|(n, _)| *n == name)
+        {
             return Module::declare(ctx.clone(), name, *src);
         }
         if is_url(name) {
@@ -188,6 +217,26 @@ impl Loader for CherryLoader {
         unsafe { Module::load(ctx.clone(), bytes) }
     }
 }
+
+// llrt Buffer.indexOf only supports number needles; add string/Buffer
+const POLYFILL_JS: &str = r#"
+{
+  const orig = Buffer.prototype.indexOf;
+  Buffer.prototype.indexOf = function (needle, offset, encoding) {
+    if (typeof needle === 'number') return orig.call(this, needle, offset, encoding);
+    const n = typeof needle === 'string'
+      ? Buffer.from(needle, typeof offset === 'string' ? offset : encoding)
+      : needle;
+    const start = typeof offset === 'number' ? Math.max(0, offset) : 0;
+    if (n.length === 0) return Math.min(start, this.length);
+    outer: for (let i = start; i <= this.length - n.length; i++) {
+      for (let j = 0; j < n.length; j++) if (this[i + j] !== n[j]) continue outer;
+      return i;
+    }
+    return -1;
+  };
+}
+"#;
 
 const CONSOLE_JS: &str = r#"
 globalThis.console = {
@@ -296,8 +345,7 @@ async fn wait_for_servers(listeners: &std::cell::Cell<usize>) {
 }
 
 const NODE_MODULES: &[&str] = &[
-    "fs",
-    "node:fs",
+    "llrt:fs",
     "fs/promises",
     "node:fs/promises",
     "path",
@@ -310,6 +358,8 @@ const NODE_MODULES: &[&str] = &[
     "node:tty",
     "crypto",
     "node:crypto",
+    "net",
+    "node:net",
     "os",
     "node:os",
     "process",
@@ -336,8 +386,7 @@ async fn run() -> i32 {
         builtin = builtin.with_module(*name);
     }
     let modules = ModuleLoader::default()
-        .with_module("fs", FsModule)
-        .with_module("node:fs", FsModule)
+        .with_module("llrt:fs", FsModule)
         .with_module("fs/promises", FsPromisesModule)
         .with_module("node:fs/promises", FsPromisesModule)
         .with_module("path", PathModule)
@@ -350,6 +399,8 @@ async fn run() -> i32 {
         .with_module("node:tty", TtyModule)
         .with_module("crypto", CryptoModule)
         .with_module("node:crypto", CryptoModule)
+        .with_module("net", NetModule)
+        .with_module("node:net", NetModule)
         .with_module("os", OsModule)
         .with_module("node:os", OsModule)
         .with_module("process", ProcessModule)
@@ -371,6 +422,7 @@ async fn run() -> i32 {
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         serve::init(&ctx, serve_tx, listeners.clone());
+        ctx.eval::<(), _>(POLYFILL_JS).expect("polyfill setup");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
         Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
             .expect("bootstrap declare")
@@ -383,6 +435,36 @@ async fn run() -> i32 {
         if args.get(1).map(String::as_str) == Some("--version") {
             println!("cherry-quickjs {}", env!("CARGO_PKG_VERSION"));
             return 0;
+        }
+        if args.get(1).map(String::as_str) == Some("--nrepl") {
+            let port: u16 = args
+                .get(2)
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(1339);
+            let boot = format!(
+                "(async () => {{ \
+                   const net = await import('net'); \
+                   if (net.Socket && !net.Socket.prototype.setNoDelay) \
+                     net.Socket.prototype.setNoDelay = function () {{ return this; }}; \
+                   const m = await import('cherry-cljs/lib/node.nrepl_server.js'); \
+                   await m.startServer({{port: {}}}); \
+                 }})()",
+                port
+            );
+            let run = async {
+                let p: Promise = ctx.eval(boot)?;
+                p.into_future::<()>().await
+            };
+            return match run.await.catch(&ctx) {
+                Ok(()) => {
+                    std::future::pending::<()>().await;
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {}", e);
+                    1
+                }
+            };
         }
         if args.get(1).map(String::as_str) == Some("-e") {
             match args.get(2) {
@@ -403,7 +485,7 @@ async fn run() -> i32 {
                     }
                 }
                 None => {
-                    eprintln!("usage: cherry-quickjs [-e expr] [file]");
+                    eprintln!("usage: cherry-quickjs [-e expr] [--nrepl [port]] [file]");
                     1
                 }
             }
