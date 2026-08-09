@@ -4,7 +4,7 @@ Choq: Cherry on QuickJS
 
 A ~5MB binary chock full of scripting goodies.
 
-This runs the [cherry](https://github.com/squint-cljs/cherry) inside an
+This runs the [cherry](https://github.com/squint-cljs/cherry) compiler inside an
 embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
