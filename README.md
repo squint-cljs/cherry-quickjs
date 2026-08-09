@@ -1,11 +1,9 @@
 # Choq
 
-Choq: Cherry on QuickJS
-
-A ~5MB binary chock full of scripting goodies.
-
-This runs the [cherry](https://github.com/squint-cljs/cherry) compiler inside an
-embedded [QuickJS](https://github.com/quickjs-ng/quickjs) engine via
+Choq (Cherry on QuickJS) is a ~5MB binary chock full of scripting
+goodies. It runs the [cherry](https://github.com/squint-cljs/cherry)
+compiler inside an embedded
+[QuickJS](https://github.com/quickjs-ng/quickjs) engine via
 [rquickjs](https://github.com/DelSkayn/rquickjs).
 
 ## Status
@@ -14,8 +12,9 @@ Experimental.
 
 ## Install
 
-The script installs `choq` into `/usr/local/bin`. Use `sudo` when that
-directory is not writable, or pick another directory with `--dir`:
+The install script puts `choq` in `/usr/local/bin`. Use `sudo` when
+that directory is not writable, or pick another directory with
+`--dir`:
 
 ```sh
 curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | sudo bash
@@ -23,7 +22,7 @@ curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | sudo 
 curl -sL https://raw.githubusercontent.com/squint-cljs/choq/main/install | bash -s -- --dir ~/bin
 ```
 
-Works on macOS, Linux and Windows (Git Bash). The zip is also on the
+Works on macOS, Linux and Windows (Git Bash). Binaries are also on the
 [dev release](https://github.com/squint-cljs/choq/releases/tag/dev).
 
 ## Usage
@@ -48,7 +47,7 @@ $ choq -e '(map inc [1 2 3])'
 (2 3 4)
 ```
 
-A file argument runs the file:
+Pass a file argument to run a script:
 
 ```sh
 $ choq script.cljs
@@ -64,17 +63,16 @@ $ choq --nrepl 7888
 
 ## API
 
-Cherry namespaces, embedded:
-`clojure.string`, `clojure.set`, `clojure.walk`, `cljs.pprint`,
-`clojure.test`.
+Embedded cherry namespaces: `clojure.string`, `clojure.set`,
+`clojure.walk`, `cljs.pprint`, `clojure.test`.
 
-Node modules, from [LLRT](https://github.com/awslabs/llrt), also under
-their `node:` names: `fs`, `fs/promises`, `path`, `buffer`, `timers`,
-`tty`, `crypto`, `net`, `os`, `process`.
+Node modules from [LLRT](https://github.com/awslabs/llrt), also
+available under their `node:` names: `fs`, `fs/promises`, `path`,
+`buffer`, `timers`, `tty`, `crypto`, `net`, `os`, `process`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports. `stream`, `events` and
-`string_decoder` are vendored js implementations
-([readable-stream](https://github.com/nodejs/readable-stream)).
+`string_decoder` are vendored js implementations based on
+[readable-stream](https://github.com/nodejs/readable-stream).
 
 Globals: `Buffer`, `console`, `crypto`, `process`, `fetch`, `Headers`,
 `Request`, `Response`, `FormData`, `setTimeout`, `clearTimeout`,
@@ -116,12 +114,12 @@ A Hono app plugs in directly:
 (serve (.-fetch app) {:port 3000})
 ```
 
-A script with a running server keeps the process alive. JS modules
-import the same API from `cherry:http`.
+A running server keeps the process alive. JS modules import the same
+API from `cherry:http`.
 
 ## URL imports
 
-`https://` specifiers load like in Deno. Downloads cache in
+`https://` specifiers load like in Deno. Downloads are cached in
 `~/.cache/choq`:
 
 ```clojure
@@ -162,5 +160,5 @@ The compiler and the standard library come from the
 pinned in package.json. build.rs compiles these modules to QuickJS
 bytecode and embeds them in the binary. The REPL compiles each input
 inside the engine and evaluates it in the same context. The node
-modules are Rust, from LLRT, on a tokio event loop. Startup takes
-about 20ms.
+modules are LLRT's Rust implementations, driven by a tokio event loop.
+Startup takes about 20ms.
