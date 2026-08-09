@@ -437,10 +437,15 @@ async fn run() -> i32 {
             return 0;
         }
         if args.get(1).map(String::as_str) == Some("--nrepl") {
-            let port: u16 = args
-                .get(2)
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(1339);
+            // explicit port is used as given; the default falls back to a
+            // free port when 1339 is taken
+            let port: u16 = match args.get(2).and_then(|p| p.parse().ok()) {
+                Some(p) => p,
+                None => match std::net::TcpListener::bind(("127.0.0.1", 1339)) {
+                    Ok(_) => 1339,
+                    Err(_) => 0,
+                },
+            };
             let boot = format!(
                 "(async () => {{ \
                    const net = await import('net'); \

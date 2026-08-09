@@ -143,6 +143,12 @@ pnpm install
 cargo build --release
 ```
 
+Run the tests:
+
+```sh
+target/debug/cherry-quickjs test/nrepl_test.cljs
+```
+
 ## Implementation
 
 The compiler and the standard library come from the
