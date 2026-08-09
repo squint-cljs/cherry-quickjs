@@ -1,4 +1,4 @@
-;; integration test for --nrepl, run with: choq test/nrepl_test.cljs
+;; integration test for --nrepl; loaded by test/run_tests.cljs
 (require '["net" :as net]
          '[clojure.string :as str]
          '[clojure.test :as t :refer [deftest is testing]])
@@ -184,7 +184,3 @@
 (deftest unknown-op-test
   (testing "an unknown op reports unknown-op"
     (is (contains? (statuses (:unknown results)) "unknown-op"))))
-
-(when-not (.-__testRunner js/globalThis)
-  (let [summary (t/run-tests)]
-    (js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))))

@@ -1,4 +1,4 @@
-;; url import integration test, run with: choq test/url_import_test.cljs
+;; url import integration test; loaded by test/run_tests.cljs
 ;; exercises the readme examples: esm.sh downloads and node builtin
 ;; mapping in remote modules
 (require '["https://esm.sh/@babashka/cli" :as cli]
@@ -19,7 +19,3 @@
 (deftest lodash-test
   (testing "a plain esm lib works"
     (is (= "fooBar" (l/camelCase "foo bar")))))
-
-(when-not (.-__testRunner js/globalThis)
-  (let [summary (t/run-tests)]
-    (js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))))

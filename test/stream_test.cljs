@@ -1,4 +1,4 @@
-;; smoke test for node:stream, run with: choq test/stream_test.cljs
+;; smoke test for node:stream; loaded by test/run_tests.cljs
 (require '["node:stream" :refer [PassThrough Readable Writable]]
          '[clojure.test :as t :refer [deftest is testing]])
 
@@ -44,7 +44,3 @@
 (deftest passthrough-test
   (testing "PassThrough passes written data through"
     (is (= ["hello"] passthrough-result))))
-
-(when-not (.-__testRunner js/globalThis)
-  (let [summary (t/run-tests)]
-    (js/process.exit (if (pos? (+ (:fail summary) (:error summary))) 1 0))))
