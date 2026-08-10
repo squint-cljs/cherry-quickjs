@@ -45,3 +45,10 @@ local `src`/`test` namespaces). Jars cache in `~/.m2/repository`.
   globalThis.
 - Git deps: grenadine supports them, the choq host map does not wire
   them yet.
+- The compile cache keys on source content only. Macros break that
+  two ways: a namespace using macros from another caches expansions
+  that go stale when the macro source changes, and a cache hit skips
+  the compile that would register macros for later consumers. Needs
+  dependency-aware keys plus persisted ns-state, or a cache bypass
+  for macro-defining namespaces. The cherry-cljs version also belongs
+  in the key.
