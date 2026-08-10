@@ -198,6 +198,7 @@ fn read_entry(jar: &str, entry: &str) -> Result<String, String> {
 // sync http for the grenadine host map; body as Uint8Array
 fn http_get_sync_fn<'js>(ctx: Ctx<'js>, url: String) -> rquickjs::Result<rquickjs::Object<'js>> {
     let obj = rquickjs::Object::new(ctx.clone())?;
+    eprintln!("Downloading {}", url);
     match ureq::get(&url).header("user-agent", "choq").call() {
         Ok(mut res) => {
             let status = res.status().as_u16();
