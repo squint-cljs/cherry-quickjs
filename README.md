@@ -178,10 +178,11 @@ afterwards:
 ```
 
 A `mvn:` specifier resolves the library and requires the namespace in
-one step:
+one step. This runs babashka.fs, the real one from clojars:
 
 ```clojure
-(require '["mvn:dev.weavejester/medley@1.8.0/medley.core" :as m])
+(require '["mvn:babashka/fs@0.5.34/babashka.fs" :as fs])
+(fs/exists? "README.md")
 ```
 
 ## Build from source
