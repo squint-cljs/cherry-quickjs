@@ -190,7 +190,18 @@ impl Loader for AssetLoader {
     }
 }
 
+// the quickjs stack limit is 4MB; the windows main thread only gets
+// 1MB, so run the build on a thread with an explicit stack size
 fn main() {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(build)
+        .expect("build thread")
+        .join()
+        .expect("build thread panicked");
+}
+
+fn build() {
     println!("cargo:rerun-if-changed=package.json");
     println!("cargo:rerun-if-changed=pnpm-lock.yaml");
     if !Path::new("node_modules/cherry-cljs").exists() {
