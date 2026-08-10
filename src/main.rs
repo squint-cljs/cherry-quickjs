@@ -15,6 +15,7 @@ use rquickjs::{
 };
 use std::io::Write;
 
+mod deps;
 mod serve;
 
 macro_rules! bytecode {
@@ -36,32 +37,6 @@ const ASSETS: &[(&str, &[u8])] = &[
     ("cherry-cljs/lib/compiler.node.js", bytecode!("cherry-cljs_lib_compiler.node.js")),
     ("cherry-cljs/lib/node.js", bytecode!("cherry-cljs_lib_node.js")),
     ("cherry-cljs/lib/node.nrepl_server.js", bytecode!("cherry-cljs_lib_node.nrepl_server.js")),
-];
-
-macro_rules! cljc {
-    ($ns:literal) => {
-        ($ns, include_str!(concat!(env!("OUT_DIR"), "/cljc.", $ns, ".js")))
-    };
-}
-
-// vendored cljc namespaces, compiled to js by build.rs; the loader wraps
-// each in an async iife so the repl-style output evaluates as a module
-const PRECOMPILED: &[(&str, &str)] = &[
-    cljc!("grenadine.version"),
-    cljc!("grenadine.xml"),
-    cljc!("grenadine.expander"),
-    cljc!("grenadine.gitlibs"),
-    cljc!("grenadine.source"),
-    cljc!("grenadine.pom"),
-    cljc!("grenadine.lock"),
-    cljc!("grenadine.repo"),
-    cljc!("grenadine.coordinate"),
-    cljc!("grenadine.graph"),
-    cljc!("grenadine.basis"),
-    cljc!("grenadine.core"),
-    cljc!("grenadine.runtime"),
-    cljc!("choq.deps"),
-    cljc!("clojurestar.deps"),
 ];
 
 // llrt_fs lacks existsSync; the native module registers as llrt:fs and
@@ -119,9 +94,6 @@ fn is_url(s: &str) -> bool {
     s.starts_with("https://") || s.starts_with("http://")
 }
 
-// source roots added at runtime by choq.deps (extracted library jars)
-static SOURCE_ROOTS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
-
 // local namespaces: a bare ns specifier resolves to a .cljs or .cljc
 // file on the conventional paths or a registered source root; loaded
 // through a shim that compiles it in-engine
@@ -131,7 +103,7 @@ fn local_cljs_path(name: &str) -> Option<String> {
     }
     let stem = name.replace('.', "/").replace('-', "_");
     let mut dirs: Vec<String> = vec!["".into(), "src/".into(), "test/".into()];
-    for root in SOURCE_ROOTS.lock().unwrap().iter() {
+    for root in deps::source_roots() {
         dirs.push(format!("{}/", root));
     }
     for dir in &dirs {
@@ -248,10 +220,10 @@ impl Resolver for CherryResolver {
         } else {
             name.to_string()
         };
-        if ASSETS.iter().any(|(n, _)| *n == resolved)
-            || PRECOMPILED.iter().any(|(n, _)| *n == resolved)
-        {
+        if ASSETS.iter().any(|(n, _)| *n == resolved) {
             Ok(resolved)
+        } else if let Some(n) = deps::resolve(base, &resolved) {
+            Ok(n)
         } else if let Some(p) = local_cljs_path(&resolved) {
             Ok(format!("cljs:{}", p))
         } else {
@@ -275,9 +247,8 @@ impl Loader for CherryLoader {
         {
             return Module::declare(ctx.clone(), name, *src);
         }
-        if let Some((_, js)) = PRECOMPILED.iter().find(|(n, _)| *n == name) {
-            let wrapped = format!("await (async function () {{\n{}\n}})();", js);
-            return Module::declare(ctx.clone(), name, wrapped);
+        if let Some(m) = deps::load(&ctx, name) {
+            return m;
         }
         if let Some(path) = name.strip_prefix("cljs:") {
             let shim = format!("await globalThis.__evalCherryFile({:?});", path);
@@ -458,29 +429,6 @@ const NODE_MODULES: &[&str] = &[
     "node:zlib",
 ];
 
-// sync http for the grenadine host map; body as Uint8Array
-fn http_get_sync_fn<'js>(ctx: Ctx<'js>, url: String) -> rquickjs::Result<rquickjs::Object<'js>> {
-    let obj = rquickjs::Object::new(ctx.clone())?;
-    match ureq::get(&url).header("user-agent", "choq").call() {
-        Ok(mut res) => {
-            let status = res.status().as_u16();
-            let mut body: Vec<u8> = Vec::new();
-            use std::io::Read;
-            res.body_mut().as_reader().read_to_end(&mut body).ok();
-            obj.set("status", status)?;
-            obj.set("body", rquickjs::TypedArray::new(ctx.clone(), body)?)?;
-        }
-        Err(_) => {
-            obj.set("status", 0u16)?;
-        }
-    }
-    Ok(obj)
-}
-
-fn add_source_roots_fn(roots: Vec<String>) {
-    SOURCE_ROOTS.lock().unwrap().extend(roots);
-}
-
 fn main() {
     // the quickjs stack limit is 4MB; the windows main thread only gets
     // 1MB, so run everything on a thread with an explicit stack size
@@ -548,11 +496,7 @@ async fn run() -> i32 {
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         serve::init(&ctx, serve_tx, listeners.clone());
-        let http_get_sync =
-            Function::new(ctx.clone(), http_get_sync_fn).expect("http_get_sync fn");
-        ctx.globals().set("__httpGetSync", http_get_sync).expect("set __httpGetSync");
-        let add_roots = Function::new(ctx.clone(), add_source_roots_fn).expect("add_roots fn");
-        ctx.globals().set("__addSourceRoots", add_roots).expect("set __addSourceRoots");
+        deps::init(&ctx);
         ctx.eval::<(), _>(POLYFILL_JS).expect("polyfill setup");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
         Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
