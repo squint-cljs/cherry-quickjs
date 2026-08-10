@@ -47,7 +47,14 @@ local `src`/`test` namespaces). Jars cache in `~/.m2/repository`.
   loader cannot pull in choq.deps itself, so it must already be
   loaded. The nrepl boot imports it, and `__evalCherry` lazily
   imports it when the source mentions mvn:, keeping startup unchanged
-  for code that does not.
+  for code that does not. Known upgrade path that removes the source
+  sniff: make the choq.deps chain synchronously evaluable with a
+  build-time transform (concatenate the compiled modules in topo
+  order, strip the ordering-only awaited imports, take cljs.core and
+  the native modules from namespaces the bootstrap stashes), so the
+  loader can eval it just in time. That also makes `import('mvn:...')`
+  work from pure js contexts that never pass through the bootstrap.
+  Pair it with the choq:internal hygiene pass when that happens.
 - Git deps: grenadine supports them, the choq host map does not wire
   them yet.
 - The compile cache keys on source content only. Macros break that
