@@ -55,8 +55,18 @@ local `src`/`test` namespaces). Jars cache in `~/.m2/repository`.
   loader can eval it just in time. That also makes `import('mvn:...')`
   work from pure js contexts that never pass through the bootstrap.
   Pair it with the choq:internal hygiene pass when that happens.
-- Git deps: grenadine supports them, the choq host map does not wire
-  them yet.
+- Git deps: partly built on the git-deps branch. Grenadine's gitlibs
+  wants a `:run-process` host effect for the git binary (clone,
+  rev-parse, worktree); the branch provides a git-only sync runner
+  (refuses any other program, consistent with the no-child_process
+  stance in ADR 0005) and cloning works. Blocked on an edn reader:
+  git and :local/root coordinates declare their transitive deps in
+  the checkout's deps.edn, read through grenadine's `:read-edn` host
+  hook, and cherry ships no read-string (cherry#205, which proposes a
+  clojure.edn module backed by the edamame already inside the
+  compiler bundle). The same reader serves the future project config
+  file. Until then git deps fail with grenadine's clean
+  "not supported by this host" error on main.
 - The compile cache keys on source content only. Macros break that
   two ways: a namespace using macros from another caches expansions
   that go stale when the macro source changes, and a cache hit skips
