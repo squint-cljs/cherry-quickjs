@@ -164,10 +164,9 @@ Bare namespace requires resolve to `.cljs` and `.cljc` files on `.`,
 
 ## Clojure dependencies
 
-`choq.deps/add-deps` resolves Clojure libraries from Clojars
-and Maven Central with
-[grenadine](https://github.com/clojurestar/grenadine). Namespaces from
-installed libraries load with plain require afterwards:
+`choq.deps/add-deps` resolves Clojure libraries from Clojars and Maven
+Central. Namespaces from installed libraries load with plain require
+afterwards:
 
 ```clojure
 (require '[choq.deps :as deps])
@@ -177,8 +176,6 @@ installed libraries load with plain require afterwards:
 (require '[medley.core :as m])
 (m/index-by :id [{:id 1} {:id 2}])
 ```
-
-Jars cache in `~/.m2/repository` like on the JVM.
 
 ## Build from source
 
