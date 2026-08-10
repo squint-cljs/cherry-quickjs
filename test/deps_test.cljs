@@ -1,6 +1,6 @@
 ;; dynamic dependency test; loaded by test/run_tests.cljs
-(require '[clojure.test :as t :refer [deftest is testing]]
-         '[choq.deps :as deps])
+(require '[choq.deps :as deps]
+         '[clojure.test :as t :refer [deftest is testing]])
 
 (deps/add-deps '{:deps {dev.weavejester/medley {:mvn/version "1.8.0"}}})
 
