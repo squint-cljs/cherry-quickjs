@@ -177,6 +177,13 @@ afterwards:
 (m/index-by :id [{:id 1} {:id 2}])
 ```
 
+A `mvn:` specifier resolves the library and requires the namespace in
+one step:
+
+```clojure
+(require '["mvn:dev.weavejester/medley@1.8.0/medley.core" :as m])
+```
+
 ## Build from source
 
 ```sh

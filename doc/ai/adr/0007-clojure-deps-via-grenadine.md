@@ -37,12 +37,14 @@ local `src`/`test` namespaces). Jars cache in `~/.m2/repository`.
 - Config file: `cherry.edn`, `choq.edn`, or an alias in `deps.edn`.
   Undecided. Grenadine consumes tools.deps-shaped maps from any of
   them.
-- `mvn:` url-style specifiers
-  (`(require '["mvn:group/artifact@1.0.0/some.ns" :as x])`) would
-  mirror deno's `npm:`. Blocked on ES module static exports: the shim
-  cannot export names it learns only after resolution. The add-deps
-  flow does not have this problem because symbol requires bind through
-  globalThis.
+- `mvn:` specifiers
+  (`(require '["mvn:group/artifact@1.0.0/some.ns" :as x])`) are
+  implemented by preprocessing in `__evalCherry`: the source is
+  scanned for mvn: strings, each dependency is ensured via
+  `choq.deps/add-mvn-dep`, and the specifier is rewritten to the bare
+  namespace symbol before compilation. This sidesteps the ES module
+  static-exports problem entirely. Known gap: the nREPL eval path
+  does not run this preprocessing.
 - Git deps: grenadine supports them, the choq host map does not wire
   them yet.
 - The compile cache keys on source content only. Macros break that

@@ -316,6 +316,21 @@ import * as compiler from 'cherry-cljs/lib/compiler.js';
 import * as core from 'cherry-cljs/cljs.core.js';
 const st = { state: null };
 globalThis.__evalCherry = async (code) => {
+  // mvn: sugar: "mvn:group/artifact@version/some.ns" in a require
+  // ensures the dependency and then requires some.ns
+  const mvnRe = /"mvn:([^"@\s]+)@([^"\/\s]+)\/([^"\s]+)"/g;
+  if (mvnRe.test(code)) {
+    try {
+      await import('choq.deps');
+      mvnRe.lastIndex = 0;
+      for (const m of code.matchAll(mvnRe)) {
+        globalThis.choq.deps.add_mvn_dep(m[1], m[2]);
+      }
+      code = code.replace(mvnRe, (_all, _lib, _version, ns) => ns);
+    } catch (e) {
+      return ['error', __str(e), 'user'];
+    }
+  }
   let res;
   try {
     res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true}, st.state);

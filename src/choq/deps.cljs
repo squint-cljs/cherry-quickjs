@@ -54,6 +54,13 @@
                    (every? #(fs/existsSync %) roots))
           roots)))))
 
+(declare add-deps)
+
+(defn add-mvn-dep
+  "Ensure lib at version; backs the mvn: require sugar."
+  [lib version]
+  (add-deps {:deps {(symbol lib) {:mvn/version version}}}))
+
 (defn add-deps
   "Resolve and install the dependencies in a deps.edn map. Namespaces
   from the installed libraries load with plain require afterwards.
