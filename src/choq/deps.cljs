@@ -21,7 +21,10 @@
    :home-dir (fn [] (nos/homedir))
    :getenv (fn [k] (aget js/process.env k))
    :digest (fn [algorithm data]
-             (-> (crypto/createHash (name algorithm)) (.update data) (.digest "hex")))})
+             (-> (crypto/createHash (name algorithm)) (.update data) (.digest "hex")))
+   :run-process (fn [{:keys [args env]}]
+                  (let [r (js/__runGitSync (into-array args) (clj->js (or env {})))]
+                    {:exit (.-exit r) :out (.-out r) :err (.-err r)}))})
 
 (def basis (atom {}))
 

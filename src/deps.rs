@@ -195,6 +195,38 @@ fn read_entry(jar: &str, entry: &str) -> Result<String, String> {
     Ok(out)
 }
 
+// sync process runner for grenadine's gitlibs, restricted to the git
+// binary; not a general child_process
+fn run_git_sync_fn<'js>(
+    ctx: Ctx<'js>,
+    args: Vec<String>,
+    env: std::collections::HashMap<String, String>,
+) -> rquickjs::Result<rquickjs::Object<'js>> {
+    let err = |msg: String| rquickjs::Exception::throw_message(&ctx, &msg);
+    let program = args
+        .first()
+        .ok_or_else(|| err("empty argv".into()))?;
+    let base = program.rsplit(['/', '\\']).next().unwrap_or(program);
+    if base != "git" && base != "git.exe" {
+        return Err(err(format!("only git may be run, got: {}", program)));
+    }
+    if args.iter().any(|a| a == "clone" || a == "fetch") {
+        if let Some(url) = args.iter().find(|a| a.contains("://") || a.contains('@')) {
+            eprintln!("Fetching {}", url);
+        }
+    }
+    let output = std::process::Command::new(program)
+        .args(&args[1..])
+        .envs(&env)
+        .output()
+        .map_err(|e| err(format!("running git: {}", e)))?;
+    let obj = rquickjs::Object::new(ctx.clone())?;
+    obj.set("exit", output.status.code().unwrap_or(-1))?;
+    obj.set("out", String::from_utf8_lossy(&output.stdout).into_owned())?;
+    obj.set("err", String::from_utf8_lossy(&output.stderr).into_owned())?;
+    Ok(obj)
+}
+
 // sync http for the grenadine host map; body as Uint8Array
 fn http_get_sync_fn<'js>(ctx: Ctx<'js>, url: String) -> rquickjs::Result<rquickjs::Object<'js>> {
     let obj = rquickjs::Object::new(ctx.clone())?;
@@ -232,4 +264,8 @@ pub fn init(ctx: &Ctx<'_>) {
     ctx.globals()
         .set("__readJarEntry", read_jar)
         .expect("set __readJarEntry");
+    let run_git = Function::new(ctx.clone(), run_git_sync_fn).expect("run_git fn");
+    ctx.globals()
+        .set("__runGitSync", run_git)
+        .expect("set __runGitSync");
 }
