@@ -23,6 +23,7 @@ rquickjs = { version = "0.11", features = ["loader", "futures"] }
 sha2 = "0.11.0"
 tokio = { version = "1.53.1", features = ["rt", "macros", "time", "net"] }
 ureq = "3.3.0"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [profile.release]
 opt-level = "z"
@@ -32,4 +33,8 @@ codegen-units = 1
 panic = "abort"
 
 [build-dependencies]
+diffy = "0.4"
 rquickjs = { version = "0.11", features = ["loader", "futures"] }
+sha2 = "0.11"
+ureq = "3"
+zip = { version = "2", default-features = false, features = ["deflate"] }

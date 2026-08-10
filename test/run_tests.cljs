@@ -4,7 +4,8 @@
 
 (def files ["test/nrepl_test.cljs"
             "test/stream_test.cljs"
-            "test/url_import_test.cljs"])
+            "test/url_import_test.cljs"
+            "test/deps_test.cljs"])
 
 (defn ^:async load-tests [test-files]
   (doseq [f test-files]

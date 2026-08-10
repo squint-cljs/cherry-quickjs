@@ -15,6 +15,7 @@ use rquickjs::{
 };
 use std::io::Write;
 
+mod deps;
 mod serve;
 
 macro_rules! bytecode {
@@ -91,6 +92,34 @@ fn normalize(path: &str) -> String {
 
 fn is_url(s: &str) -> bool {
     s.starts_with("https://") || s.starts_with("http://")
+}
+
+// local namespaces: a bare ns specifier resolves to a .cljs or .cljc
+// file on the conventional paths or a registered source root; loaded
+// through a shim that compiles it in-engine
+fn local_cljs_path(name: &str) -> Option<String> {
+    if name.contains('/') || name.contains(':') || name.starts_with('.') {
+        return None;
+    }
+    let stem = name.replace('.', "/").replace('-', "_");
+    let mut dirs: Vec<String> = vec!["".into(), "src/".into(), "test/".into()];
+    for root in deps::source_roots() {
+        if !root.ends_with(".jar") {
+            dirs.push(format!("{}/", root));
+        }
+    }
+    if let Some(p) = deps::find_in_jar_roots(&stem) {
+        return Some(p);
+    }
+    for dir in &dirs {
+        for ext in ["cljs", "cljc"] {
+            let p = format!("{}{}.{}", dir, stem, ext);
+            if std::path::Path::new(&p).is_file() {
+                return Some(p);
+            }
+        }
+    }
+    None
 }
 
 fn join_url(base: &str, name: &str) -> String {
@@ -190,6 +219,9 @@ impl Resolver for CherryResolver {
             }
             return Ok(url);
         }
+        if name.starts_with("mvn:") {
+            return Ok(name.to_string());
+        }
         let resolved = if name.starts_with("./") || name.starts_with("../") {
             let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
             normalize(&format!("{}/{}", dir, name))
@@ -198,6 +230,10 @@ impl Resolver for CherryResolver {
         };
         if ASSETS.iter().any(|(n, _)| *n == resolved) {
             Ok(resolved)
+        } else if let Some(n) = deps::resolve(base, &resolved) {
+            Ok(n)
+        } else if let Some(p) = local_cljs_path(&resolved) {
+            Ok(format!("cljs:{}", p))
         } else {
             Err(Error::new_resolving(base, name))
         }
@@ -218,6 +254,16 @@ impl Loader for CherryLoader {
             .find(|(n, _)| *n == name)
         {
             return Module::declare(ctx.clone(), name, *src);
+        }
+        if let Some(m) = deps::load(&ctx, name) {
+            return m;
+        }
+        if let Some(path) = name.strip_prefix("cljs:") {
+            let shim = format!("await globalThis.__evalCherryFile({:?});", path);
+            return Module::declare(ctx.clone(), name, shim);
+        }
+        if name.starts_with("mvn:") {
+            return deps::load_mvn(ctx, name);
         }
         if is_url(name) {
             let src = fetch_url(name)
@@ -276,6 +322,11 @@ import * as compiler from 'cherry-cljs/lib/compiler.js';
 import * as core from 'cherry-cljs/cljs.core.js';
 const st = { state: null };
 globalThis.__evalCherry = async (code) => {
+  // mvn: modules are served by the loader, which is sync and cannot
+  // pull in choq.deps itself; load it up front when the source hints
+  if (code.includes('mvn:') && globalThis.choq?.deps == null) {
+    try { await import('choq.deps'); } catch (e) { return ['error', __str(e), 'user']; }
+  }
   let res;
   try {
     res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true}, st.state);
@@ -294,6 +345,38 @@ globalThis.__evalCherry = async (code) => {
     if (core._STAR_e) core._STAR_e.val = e;
     return ['error', __str(e), ns];
   }
+};
+globalThis.__compileCherry = (src) => {
+  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+  st.state = res;
+  return res.javascript;
+};
+globalThis.__evalCherryFile = async (path) => {
+  const fs = await import('fs');
+  const crypto = await import('crypto');
+  const os = await import('os');
+  let src;
+  if (path.startsWith('jar:')) {
+    const bang = path.indexOf('!');
+    src = __readJarEntry(path.slice(4, bang), path.slice(bang + 1));
+  } else {
+    src = fs.readFileSync(path, 'utf8');
+  }
+  // compiled-output cache keyed on the source
+  const sha = crypto.createHash('sha256').update(src).digest('hex');
+  const dir = os.homedir() + '/.cache/choq/compiled';
+  const cached = dir + '/' + sha + '.js';
+  let js;
+  if (fs.existsSync(cached)) {
+    js = fs.readFileSync(cached, 'utf8');
+  } else {
+    const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+    st.state = res;
+    js = res.javascript;
+    fs.mkdirSync(dir, {recursive: true});
+    fs.writeFileSync(cached, js);
+  }
+  await (0, eval)('(async function () {\n' + js + '\n})()');
 };
 "#;
 
@@ -454,6 +537,7 @@ async fn run() -> i32 {
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");
         serve::init(&ctx, serve_tx, listeners.clone());
+        deps::init(&ctx);
         ctx.eval::<(), _>(POLYFILL_JS).expect("polyfill setup");
         ctx.eval::<(), _>(CONSOLE_JS).expect("console setup");
         Module::evaluate(ctx.clone(), "bootstrap", BOOTSTRAP_JS)
@@ -487,6 +571,7 @@ async fn run() -> i32 {
                    const net = await import('net'); \
                    if (net.Socket && !net.Socket.prototype.setNoDelay) \
                      net.Socket.prototype.setNoDelay = function () {{ return this; }}; \
+                   await import('choq.deps'); \
                    const m = await import('cherry-cljs/lib/node.nrepl_server.js'); \
                    await m.startServer({{port: {}}}); \
                  }})()",
