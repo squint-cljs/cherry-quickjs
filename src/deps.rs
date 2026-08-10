@@ -31,11 +31,68 @@ const PRECOMPILED: &[(&str, &str)] = &[
 
 const PUBLIC: &[&str] = &["choq.deps"];
 
-// source roots added at runtime by choq.deps (extracted library jars)
+// source roots added at runtime by choq.deps (library jars)
 static SOURCE_ROOTS: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
 pub fn source_roots() -> Vec<String> {
     SOURCE_ROOTS.lock().unwrap().clone()
+}
+
+// namespaces load straight from jars, java-style: an entry index per
+// jar answers resolution, entries decompress on demand
+static JAR_INDEX: std::sync::Mutex<
+    Option<std::collections::HashMap<String, std::sync::Arc<std::collections::HashSet<String>>>>,
+> = std::sync::Mutex::new(None);
+
+fn jar_entries(jar: &str) -> std::sync::Arc<std::collections::HashSet<String>> {
+    let mut guard = JAR_INDEX.lock().unwrap();
+    let map = guard.get_or_insert_with(Default::default);
+    if let Some(entries) = map.get(jar) {
+        return entries.clone();
+    }
+    let mut set = std::collections::HashSet::new();
+    if let Ok(f) = std::fs::File::open(jar) {
+        if let Ok(z) = zip::ZipArchive::new(f) {
+            for name in z.file_names() {
+                set.insert(name.to_string());
+            }
+        }
+    }
+    let entries = std::sync::Arc::new(set);
+    map.insert(jar.to_string(), entries.clone());
+    entries
+}
+
+// a namespace file inside one of the registered jar roots, as a
+// jar:<path>!<entry> pseudo path
+pub fn find_in_jar_roots(stem: &str) -> Option<String> {
+    for root in source_roots() {
+        if !root.ends_with(".jar") {
+            continue;
+        }
+        for ext in ["cljs", "cljc"] {
+            let entry = format!("{}.{}", stem, ext);
+            if jar_entries(&root).contains(&entry) {
+                return Some(format!("jar:{}!{}", root, entry));
+            }
+        }
+    }
+    None
+}
+
+fn read_jar_entry_fn<'js>(ctx: Ctx<'js>, jar: String, entry: String) -> rquickjs::Result<String> {
+    let err = |msg: String| rquickjs::Exception::throw_message(&ctx, &msg);
+    let f = std::fs::File::open(&jar).map_err(|e| err(format!("open {}: {}", jar, e)))?;
+    let mut z =
+        zip::ZipArchive::new(f).map_err(|e| err(format!("read {}: {}", jar, e)))?;
+    let mut file = z
+        .by_name(&entry)
+        .map_err(|e| err(format!("{} in {}: {}", entry, jar, e)))?;
+    let mut out = String::new();
+    use std::io::Read;
+    file.read_to_string(&mut out)
+        .map_err(|e| err(format!("read {} in {}: {}", entry, jar, e)))?;
+    Ok(out)
 }
 
 pub fn resolve(base: &str, name: &str) -> Option<String> {
@@ -90,4 +147,8 @@ pub fn init(ctx: &Ctx<'_>) {
     ctx.globals()
         .set("__addSourceRoots", add_roots)
         .expect("set __addSourceRoots");
+    let read_jar = Function::new(ctx.clone(), read_jar_entry_fn).expect("read_jar fn");
+    ctx.globals()
+        .set("__readJarEntry", read_jar)
+        .expect("set __readJarEntry");
 }

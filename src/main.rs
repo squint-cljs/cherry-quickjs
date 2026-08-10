@@ -104,7 +104,12 @@ fn local_cljs_path(name: &str) -> Option<String> {
     let stem = name.replace('.', "/").replace('-', "_");
     let mut dirs: Vec<String> = vec!["".into(), "src/".into(), "test/".into()];
     for root in deps::source_roots() {
-        dirs.push(format!("{}/", root));
+        if !root.ends_with(".jar") {
+            dirs.push(format!("{}/", root));
+        }
+    }
+    if let Some(p) = deps::find_in_jar_roots(&stem) {
+        return Some(p);
     }
     for dir in &dirs {
         for ext in ["cljs", "cljc"] {
@@ -334,7 +339,13 @@ globalThis.__evalCherryFile = async (path) => {
   const fs = await import('fs');
   const crypto = await import('crypto');
   const os = await import('os');
-  const src = fs.readFileSync(path, 'utf8');
+  let src;
+  if (path.startsWith('jar:')) {
+    const bang = path.indexOf('!');
+    src = __readJarEntry(path.slice(4, bang), path.slice(bang + 1));
+  } else {
+    src = fs.readFileSync(path, 'utf8');
+  }
   // compiled-output cache keyed on the source
   const sha = crypto.createHash('sha256').update(src).digest('hex');
   const dir = os.homedir() + '/.cache/choq/compiled';
