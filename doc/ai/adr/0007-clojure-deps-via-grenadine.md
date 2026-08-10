@@ -12,11 +12,14 @@ published as a vendorable source jar (cc.clojure/grenadine).
 
 ## Decision
 
-Vendor grenadine 0.1.6 under `vendor/` (with a char-code patch until
-clojurestar/grenadine#5 lands) plus two namespaces of our own:
-`choq.deps` (the host map: fs, crypto, zlib, a sync http host fn, a
-cljs zip extractor) and a `:cherry` branch in the `clojurestar.deps`
-facade.
+build.rs downloads the pinned grenadine source jar from clojars
+(sha256 verified, cached in `~/.cache/choq/build`), extracts it and
+applies the patches in `patches/` (a char-code fix until
+clojurestar/grenadine#5 lands, and a `:cherry` branch in the
+`clojurestar.deps` facade). `src/choq/deps.cljs` adds the host map:
+fs, crypto, zlib, a sync http host fn and a cljs zip extractor. Only
+`choq.deps` resolves from user code; the grenadine namespaces are
+internal.
 
 build.rs compiles the vendored cljc to js with the embedded cherry
 compiler (no node in the build) and the loader serves each namespace

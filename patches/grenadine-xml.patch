@@ -1,0 +1,26 @@
+--- a/grenadine/xml.cljc
++++ b/grenadine/xml.cljc
+@@ -47,12 +47,12 @@
+ 
+ (defn- ascii-letter?
+   [c]
+-  (let [n (int (if (string? c) (first c) c))]
++  (let [n (if (string? c) (.charCodeAt c 0) (int c))]
+     (or (<= 65 n 90) (<= 97 n 122))))
+ 
+ (defn- ascii-digit?
+   [c]
+-  (let [n (int (if (string? c) (first c) c))]
++  (let [n (if (string? c) (.charCodeAt c 0) (int c))]
+     (<= 48 n 57)))
+ 
+ (defn- name-start?
+@@ -83,7 +83,7 @@
+ 
+ (defn- digit-value
+   [c radix]
+-  (let [n (int (if (string? c) (first c) c))
++  (let [n (if (string? c) (.charCodeAt c 0) (int c))
+         value (cond
+                 (<= 48 n 57) (- n 48)
+                 (<= 65 n 70) (+ 10 (- n 65))
