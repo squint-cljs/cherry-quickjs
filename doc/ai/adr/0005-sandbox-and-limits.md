@@ -60,6 +60,14 @@ In-process sandboxing is bounded by QuickJS memory safety. For hostile
 code, wrap OS-level isolation around the process as well. This layer
 is defense in depth, not a security boundary on its own.
 
+Process spawning voids any sandbox: a child process carries the user's
+full privileges and none of the runtime's checks (deno documents
+`--allow-run` accordingly, and grants like write access to shell rc
+files or env vars like `LD_PRELOAD` leak the same way). choq has no
+`child_process` today, which is the strongest position. If it lands,
+`--sandbox` excludes it entirely rather than offering an
+`--allow-run`.
+
 ## Status notes
 
 Recorded ahead of implementation. Suggested order: limits first (pure
