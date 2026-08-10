@@ -7,6 +7,8 @@ use llrt_path::PathModule;
 use llrt_process::ProcessModule;
 use llrt_timers::TimersModule;
 use llrt_tty::TtyModule;
+use llrt_url::UrlModule;
+use llrt_util::UtilModule;
 use llrt_zlib::ZlibModule;
 use rquickjs::loader::{BuiltinResolver, Loader, ModuleLoader, Resolver};
 use rquickjs::module::{Declared, Module};
@@ -55,12 +57,24 @@ export * from 'vendor:readable-stream';
 export { default } from 'vendor:readable-stream';
 "#;
 
+// llrt_util lacks inspect; minimal one with the custom symbol
+const UTIL_WRAPPER_JS: &str = r#"
+import * as u from 'llrt:util';
+export * from 'llrt:util';
+const inspect = (x) => { try { return JSON.stringify(x) } catch (e) { return String(x) } };
+inspect.custom = Symbol.for('nodejs.util.inspect.custom');
+export { inspect };
+export default Object.assign({}, u.default, { inspect });
+"#;
+
 // js-implemented builtins; empty source = import-satisfying stub
 const JS_BUILTINS: &[(&str, &str)] = &[
     ("child_process", ""),
     ("node:child_process", ""),
     ("fs", FS_WRAPPER_JS),
     ("node:fs", FS_WRAPPER_JS),
+    ("util", UTIL_WRAPPER_JS),
+    ("node:util", UTIL_WRAPPER_JS),
     ("stream", STREAM_JS),
     ("node:stream", STREAM_JS),
     ("vendor:readable-stream", include_str!("../vendor/readable-stream.mjs")),
@@ -463,6 +477,9 @@ const NODE_MODULES: &[&str] = &[
     "node:timers",
     "tty",
     "node:tty",
+    "url",
+    "node:url",
+    "llrt:util",
     "crypto",
     "node:crypto",
     "net",
@@ -516,6 +533,9 @@ async fn run() -> i32 {
         .with_module("node:timers", TimersModule)
         .with_module("tty", TtyModule)
         .with_module("node:tty", TtyModule)
+        .with_module("url", UrlModule)
+        .with_module("node:url", UrlModule)
+        .with_module("llrt:util", UtilModule)
         .with_module("crypto", CryptoModule)
         .with_module("node:crypto", CryptoModule)
         .with_module("net", NetModule)
@@ -539,6 +559,8 @@ async fn run() -> i32 {
         llrt_timers::init(&ctx).expect("timers init");
         llrt_fetch::init(&ctx).expect("fetch init");
         llrt_crypto::init(&ctx).expect("crypto init");
+        llrt_url::init(&ctx).expect("url init");
+        llrt_util::init(&ctx).expect("util init");
         llrt_process::init(&ctx).expect("process init");
         let print = Function::new(ctx.clone(), |s: String| println!("{}", s)).expect("print fn");
         ctx.globals().set("__print", print).expect("set __print");

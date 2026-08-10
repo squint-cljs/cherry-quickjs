@@ -229,6 +229,8 @@ dependencies = [
  "llrt_process",
  "llrt_timers",
  "llrt_tty",
+ "llrt_url",
+ "llrt_util",
  "llrt_zlib",
  "rquickjs",
  "sha2",
@@ -1337,6 +1339,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "llrt_logging"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "196dc2fa18cccb79273d2aaf0c1236e5ef341ec2a3f5114c0c08ab022910f01f"
+dependencies = [
+ "itoa",
+ "llrt_context",
+ "llrt_encoding",
+ "llrt_json",
+ "llrt_numbers",
+ "llrt_utils_watts",
+ "rquickjs",
+ "ryu",
+]
+
+[[package]]
 name = "llrt_net"
 version = "0.8.1-beta"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1351,6 +1369,18 @@ dependencies = [
  "rquickjs",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "llrt_numbers"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e60c7403a79a173962c7db3259fffcce3ef21da54a43dd469ecd1ba059fb3dc7"
+dependencies = [
+ "itoa",
+ "llrt_utils_watts",
+ "rquickjs",
+ "ryu",
 ]
 
 [[package]]
@@ -1455,6 +1485,19 @@ dependencies = [
  "llrt_utils_watts",
  "rquickjs",
  "url",
+]
+
+[[package]]
+name = "llrt_util"
+version = "0.8.1-beta"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6fcda9ff20b1683d5a1f6bb49f033c7891891a31d468c4bd6306d61e60e7380"
+dependencies = [
+ "llrt_context",
+ "llrt_encoding",
+ "llrt_logging",
+ "llrt_utils_watts",
+ "rquickjs",
 ]
 
 [[package]]
