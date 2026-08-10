@@ -110,7 +110,8 @@ fn fetch_grenadine() -> std::path::PathBuf {
         fs::write(out, content).unwrap();
     }
     for (patch_file, target) in PATCHES {
-        let patch_text = fs::read_to_string(patch_file).unwrap();
+        // windows checkouts may introduce crlf, the jar sources are lf
+        let patch_text = fs::read_to_string(patch_file).unwrap().replace("\r\n", "\n");
         let patch = diffy::Patch::from_str(&patch_text)
             .unwrap_or_else(|e| panic!("parsing {}: {}", patch_file, e));
         let target_path = dest.join(target);
