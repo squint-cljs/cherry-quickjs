@@ -81,18 +81,8 @@ pub fn find_in_jar_roots(stem: &str) -> Option<String> {
 }
 
 fn read_jar_entry_fn<'js>(ctx: Ctx<'js>, jar: String, entry: String) -> rquickjs::Result<String> {
-    let err = |msg: String| rquickjs::Exception::throw_message(&ctx, &msg);
-    let f = std::fs::File::open(&jar).map_err(|e| err(format!("open {}: {}", jar, e)))?;
-    let mut z =
-        zip::ZipArchive::new(f).map_err(|e| err(format!("read {}: {}", jar, e)))?;
-    let mut file = z
-        .by_name(&entry)
-        .map_err(|e| err(format!("{} in {}: {}", entry, jar, e)))?;
-    let mut out = String::new();
-    use std::io::Read;
-    file.read_to_string(&mut out)
-        .map_err(|e| err(format!("read {} in {}: {}", entry, jar, e)))?;
-    Ok(out)
+    read_entry(&jar, &entry)
+        .map_err(|e| rquickjs::Exception::throw_message(&ctx, &format!("{} in {}: {}", entry, jar, e)))
 }
 
 pub fn resolve(base: &str, name: &str) -> Option<String> {
@@ -113,6 +103,96 @@ pub fn load<'js>(
     let (_, js) = PRECOMPILED.iter().find(|(n, _)| *n == name)?;
     let wrapped = format!("await (async function () {{\n{}\n}})();", js);
     Some(rquickjs::module::Module::declare(ctx.clone(), name, wrapped))
+}
+
+// mvn:<group>/<artifact>@<version>/<some.ns> modules: ensure the
+// dependency, compile the namespace, and emit a module with real
+// exports. The loader is a host callback, so re-entrant ctx.eval into
+// the engine is fine; the whole path is synchronous because the
+// grenadine host is. Requires choq.deps to be loaded already (the
+// repl and file paths preprocess instead; the nrepl boot imports it).
+pub fn load_mvn<'js>(
+    ctx: &Ctx<'js>,
+    name: &str,
+) -> rquickjs::Result<rquickjs::module::Module<'js, rquickjs::module::Declared>> {
+    let err = |msg: String| rquickjs::Exception::throw_message(ctx, &msg);
+    let bad = || err(format!("invalid mvn specifier: {}", name));
+    let rest = name.strip_prefix("mvn:").unwrap();
+    let (lib, rest) = rest.split_once('@').ok_or_else(bad)?;
+    let (version, ns) = rest.split_once('/').ok_or_else(bad)?;
+    if lib.is_empty() || version.is_empty() || ns.is_empty() {
+        return Err(bad());
+    }
+
+    let loaded: bool = ctx.eval("globalThis.choq?.deps != null")?;
+    if !loaded {
+        return Err(err(
+            "mvn: requires choq.deps; run (require '[choq.deps]) first".into(),
+        ));
+    }
+    ctx.eval::<rquickjs::Value, _>(format!(
+        "globalThis.choq.deps.add_mvn_dep({:?}, {:?})",
+        lib, version
+    ))?;
+
+    let stem = ns.replace('.', "/").replace('-', "_");
+    let jar_path = find_in_jar_roots(&stem)
+        .ok_or_else(|| err(format!("namespace {} not found in {}", ns, lib)))?;
+    let bang = jar_path.find('!').unwrap();
+    let src = read_entry(&jar_path[4..bang], &jar_path[bang + 1..])
+        .map_err(|e| err(format!("reading {}: {}", jar_path, e)))?;
+
+    // compiled-output cache, same layout as __evalCherryFile's
+    use sha2::{Digest, Sha256};
+    let sha: String = Sha256::digest(src.as_bytes())
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    let cache_dir =
+        std::path::Path::new(&std::env::var("HOME").unwrap()).join(".cache/choq/compiled");
+    let cache = cache_dir.join(format!("{}.js", sha));
+    let js = if let Ok(cached) = std::fs::read_to_string(&cache) {
+        cached
+    } else {
+        ctx.globals().set("__mvnSrc", src)?;
+        let compiled: String = ctx.eval("__compileCherry(globalThis.__mvnSrc)")?;
+        let _ = std::fs::create_dir_all(&cache_dir);
+        let _ = std::fs::write(&cache, &compiled);
+        compiled
+    };
+
+    // exports are the vars the compiled output assigns on the ns object
+    let munged_ns = ns.replace('-', "_");
+    let assign_prefix = format!("globalThis.{}.", munged_ns);
+    let mut vars: std::collections::BTreeSet<String> = Default::default();
+    for chunk in js.split(&assign_prefix).skip(1) {
+        let ident: String = chunk
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '$')
+            .collect();
+        if !ident.is_empty() && chunk[ident.len()..].trim_start().starts_with('=') {
+            vars.insert(ident);
+        }
+    }
+
+    let mut module = format!(
+        "await (async function () {{\n{}\n}})();\nconst __n = globalThis.{};\n",
+        js, munged_ns
+    );
+    for v in &vars {
+        module.push_str(&format!("export const {} = __n.{};\n", v, v));
+    }
+    rquickjs::module::Module::declare(ctx.clone(), name, module)
+}
+
+fn read_entry(jar: &str, entry: &str) -> Result<String, String> {
+    let f = std::fs::File::open(jar).map_err(|e| e.to_string())?;
+    let mut z = zip::ZipArchive::new(f).map_err(|e| e.to_string())?;
+    let mut file = z.by_name(entry).map_err(|e| e.to_string())?;
+    let mut out = String::new();
+    use std::io::Read;
+    file.read_to_string(&mut out).map_err(|e| e.to_string())?;
+    Ok(out)
 }
 
 // sync http for the grenadine host map; body as Uint8Array

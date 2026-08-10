@@ -219,6 +219,9 @@ impl Resolver for CherryResolver {
             }
             return Ok(url);
         }
+        if name.starts_with("mvn:") {
+            return Ok(name.to_string());
+        }
         let resolved = if name.starts_with("./") || name.starts_with("../") {
             let dir = base.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
             normalize(&format!("{}/{}", dir, name))
@@ -258,6 +261,9 @@ impl Loader for CherryLoader {
         if let Some(path) = name.strip_prefix("cljs:") {
             let shim = format!("await globalThis.__evalCherryFile({:?});", path);
             return Module::declare(ctx.clone(), name, shim);
+        }
+        if name.starts_with("mvn:") {
+            return deps::load_mvn(ctx, name);
         }
         if is_url(name) {
             let src = fetch_url(name)
@@ -349,6 +355,11 @@ globalThis.__evalCherry = async (code) => {
     if (core._STAR_e) core._STAR_e.val = e;
     return ['error', __str(e), ns];
   }
+};
+globalThis.__compileCherry = (src) => {
+  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+  st.state = res;
+  return res.javascript;
 };
 globalThis.__evalCherryFile = async (path) => {
   const fs = await import('fs');
@@ -570,6 +581,7 @@ async fn run() -> i32 {
                    const net = await import('net'); \
                    if (net.Socket && !net.Socket.prototype.setNoDelay) \
                      net.Socket.prototype.setNoDelay = function () {{ return this; }}; \
+                   await import('choq.deps'); \
                    const m = await import('cherry-cljs/lib/node.nrepl_server.js'); \
                    await m.startServer({{port: {}}}); \
                  }})()",

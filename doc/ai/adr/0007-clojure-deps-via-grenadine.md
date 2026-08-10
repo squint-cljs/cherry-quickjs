@@ -38,13 +38,16 @@ local `src`/`test` namespaces). Jars cache in `~/.m2/repository`.
   Undecided. Grenadine consumes tools.deps-shaped maps from any of
   them.
 - `mvn:` specifiers
-  (`(require '["mvn:group/artifact@1.0.0/some.ns" :as x])`) are
-  implemented by preprocessing in `__evalCherry`: the source is
-  scanned for mvn: strings, each dependency is ensured via
-  `choq.deps/add-mvn-dep`, and the specifier is rewritten to the bare
-  namespace symbol before compilation. This sidesteps the ES module
-  static-exports problem entirely. Known gap: the nREPL eval path
-  does not run this preprocessing.
+  (`(require '["mvn:group/artifact@1.0.0/some.ns" :as x])`) work two
+  ways. The repl and file paths preprocess in `__evalCherry`: mvn:
+  strings ensure their dependency and rewrite to the bare namespace
+  symbol before compilation. Everything else (nrepl, direct js
+  import) goes through the module loader: `deps::load_mvn` ensures
+  the dependency and compiles the namespace synchronously (the loader
+  is a host callback, re-entrant ctx.eval is fine, and the grenadine
+  host is sync), then emits a module whose exports are the vars the
+  compiled output assigns. The loader path needs choq.deps loaded
+  up front, which the nrepl boot does; the preprocess path stays lazy.
 - Git deps: grenadine supports them, the choq host map does not wire
   them yet.
 - The compile cache keys on source content only. Macros break that
