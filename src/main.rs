@@ -476,7 +476,7 @@ const NODE_MODULES: &[&str] = &[
 ];
 
 fn main() {
-    // the quickjs stack limit is 4MB; the windows main thread only gets
+    // the quickjs stack limit is 12MB; the windows main thread only gets
     // 1MB, so run everything on a thread with an explicit stack size
     let exit_code = std::thread::Builder::new()
         .stack_size(16 * 1024 * 1024)
@@ -496,9 +496,10 @@ fn main() {
 
 async fn run() -> i32 {
     let rt = AsyncRuntime::new().expect("runtime");
-    // the cherry compiler recurses deeply on nested forms, the quickjs
+    // the cherry compiler recurses deeply on nested forms (deeper still
+    // with msvc-sized frames on windows), the quickjs
     // default stack limit is too small for it
-    rt.set_max_stack_size(4 * 1024 * 1024).await;
+    rt.set_max_stack_size(12 * 1024 * 1024).await;
     let mut builtin = BuiltinResolver::default();
     for name in NODE_MODULES {
         builtin = builtin.with_module(*name);

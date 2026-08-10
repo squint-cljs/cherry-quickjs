@@ -190,7 +190,7 @@ impl Loader for AssetLoader {
     }
 }
 
-// the quickjs stack limit is 4MB; the windows main thread only gets
+// the quickjs stack limit is 12MB; the windows main thread only gets
 // 1MB, so run the build on a thread with an explicit stack size
 fn main() {
     std::thread::Builder::new()
@@ -212,7 +212,7 @@ fn build() {
     println!("cargo:rerun-if-changed=src/choq");
     let grenadine_src = fetch_grenadine();
     let rt = Runtime::new().unwrap();
-    rt.set_max_stack_size(4 * 1024 * 1024);
+    rt.set_max_stack_size(12 * 1024 * 1024);
     rt.set_loader(AssetResolver, AssetLoader);
     let context = Context::full(&rt).unwrap();
     context.with(|ctx| {
