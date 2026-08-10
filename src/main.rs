@@ -332,10 +332,24 @@ globalThis.__evalCherry = async (code) => {
 };
 globalThis.__evalCherryFile = async (path) => {
   const fs = await import('fs');
+  const crypto = await import('crypto');
+  const os = await import('os');
   const src = fs.readFileSync(path, 'utf8');
-  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
-  st.state = res;
-  await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
+  // compiled-output cache keyed on the source
+  const sha = crypto.createHash('sha256').update(src).digest('hex');
+  const dir = os.homedir() + '/.cache/choq/compiled';
+  const cached = dir + '/' + sha + '.js';
+  let js;
+  if (fs.existsSync(cached)) {
+    js = fs.readFileSync(cached, 'utf8');
+  } else {
+    const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+    st.state = res;
+    js = res.javascript;
+    fs.mkdirSync(dir, {recursive: true});
+    fs.writeFileSync(cached, js);
+  }
+  await (0, eval)('(async function () {\n' + js + '\n})()');
 };
 "#;
 

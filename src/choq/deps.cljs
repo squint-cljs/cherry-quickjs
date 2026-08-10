@@ -71,8 +71,47 @@
 (defn- add-roots! [roots]
   (js/__addSourceRoots (into-array roots)))
 
+;; resolution cache, keyed on the requested deps like the classpath
+;; cache in deps.clj: canonical input -> source roots
+(def ^:private cache-version "1")
+
+(defn- cache-key [deps-map]
+  (str cache-version "|" (pr-str (sort-by (comp str first) (:deps deps-map)))))
+
+(defn- cpcache-dir []
+  (str (nos/homedir) "/.cache/choq/cpcache"))
+
+(defn- cache-file [ck]
+  (let [h (-> (crypto/createHash "sha256") (.update ck) (.digest "hex"))]
+    (str (cpcache-dir) "/" h ".json")))
+
+(defn- cached-roots
+  "Source roots for ck when the cache entry is fresh, else nil."
+  [ck]
+  (let [f (cache-file ck)]
+    (when (fs/existsSync f)
+      (let [entry (js/JSON.parse (fs/readFileSync f "utf8"))
+            roots (vec (js/Array.from (.-sourceRoots entry)))]
+        (when (and (= ck (.-input entry))
+                   (seq roots)
+                   (every? #(fs/existsSync %) roots))
+          roots)))))
+
 (defn add-deps
   "Resolve and install the dependencies in a deps.edn map. Namespaces
-  from the installed libraries load with plain require afterwards."
-  [deps-map]
-  (runtime/add-libs! basis add-roots! (:deps deps-map) {:host host}))
+  from the installed libraries load with plain require afterwards.
+  Pass {:force true} to skip the resolution cache."
+  ([deps-map] (add-deps deps-map nil))
+  ([deps-map opts]
+   (let [ck (cache-key deps-map)]
+     (if-let [roots (and (not (:force opts)) (cached-roots ck))]
+       (do (add-roots! roots)
+           {:source-roots roots :cached true})
+       (let [result (runtime/add-libs! basis add-roots! (:deps deps-map) {:host host})
+             roots (:source-roots result)]
+         (when (seq roots)
+           (fs/mkdirSync (cpcache-dir) #js {:recursive true})
+           (fs/writeFileSync (cache-file ck)
+                             (js/JSON.stringify #js {:input ck
+                                                     :sourceRoots (into-array roots)})))
+         result)))))
