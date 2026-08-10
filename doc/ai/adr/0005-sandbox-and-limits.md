@@ -68,6 +68,24 @@ files or env vars like `LD_PRELOAD` leak the same way). choq has no
 `--sandbox` excludes it entirely rather than offering an
 `--allow-run`.
 
+## Stack limits
+
+The quickjs stack limit is 12MB globally (build and runtime), on 16MB
+native threads. The driver is the cherry compiler, which recurses per
+nested form: the 256KB default dies on a one-line nested form, and
+4MB died compiling grenadine's xml.cljc (12KB of nested cond/loop)
+under msvc frame sizes on windows. The limit is uniform across
+platforms so scripts fail the same everywhere. User code gets the
+same 12MB since compiler and user share one engine.
+
+Consequence for `--sandbox`: a tight `--max-stack` for untrusted code
+cannot coexist with the compiler's appetite in one engine. The
+designed answer is a separate compiler engine (strings in, compiled
+js out), created lazily under `--sandbox` only, so normal startup
+keeps paying for one engine. The root fix is de-recursing the
+compiler hot paths upstream in cherry/squint, which would shrink
+stack needs for every embedding.
+
 ## Status notes
 
 Recorded ahead of implementation. Suggested order: limits first (pure
