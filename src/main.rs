@@ -340,15 +340,35 @@ const BOOTSTRAP_JS: &str = r#"
 import * as compiler from 'cherry-cljs/lib/compiler.js';
 import * as core from 'cherry-cljs/cljs.core.js';
 const st = { state: null };
+// load requireable namespaces before compiling, so self-hosted macros
+// they define are registered by the time the compiler expands their
+// uses; dotted bare symbols in require position, misses ignored
+globalThis.__preloadRequires = async (code) => {
+  const seen = new Set();
+  // mvn: specifiers first and in source order, so a library's macro
+  // namespace can be required before the namespace using it
+  for (const m of code.matchAll(/"(mvn:[^"\s]+)"/g)) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    await import(m[1]);
+  }
+  const re = /[\(\[]\s*'?([a-z][\w*+!?<>=-]*(?:\.[\w*+!?<>=-]+)+)/g;
+  for (const m of code.matchAll(re)) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    try { await import(m[1]); } catch (e) {}
+  }
+};
 globalThis.__evalCherry = async (code) => {
   // mvn: modules are served by the loader, which is sync and cannot
   // pull in choq.deps itself; load it up front when the source hints
   if (code.includes('mvn:') && globalThis.choq?.deps == null) {
     try { await import('choq.deps'); } catch (e) { return ['error', __str(e), 'user']; }
   }
+  await __preloadRequires(code);
   let res;
   try {
-    res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true}, st.state);
+    res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
   } catch (e) {
     const m = String((e && e.message) || e);
     if (m.includes('EOF while reading')) return ['incomplete', '', ''];
@@ -366,7 +386,7 @@ globalThis.__evalCherry = async (code) => {
   }
 };
 globalThis.__compileCherry = (src) => {
-  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
   st.state = res;
   return res.javascript;
 };
@@ -385,11 +405,12 @@ globalThis.__evalCherryFile = async (path) => {
   const sha = crypto.createHash('sha256').update(src).digest('hex');
   const dir = os.homedir() + '/.cache/choq/compiled';
   const cached = dir + '/' + sha + '.js';
+  await __preloadRequires(src);
   let js;
   if (fs.existsSync(cached)) {
     js = fs.readFileSync(cached, 'utf8');
   } else {
-    const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true}, st.state);
+    const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
     st.state = res;
     js = res.javascript;
     fs.mkdirSync(dir, {recursive: true});
