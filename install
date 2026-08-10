@@ -103,7 +103,10 @@ download_url="https://github.com/$repo/releases/download/dev/$filename"
 mkdir -p "$download_dir" && (
     cd "$download_dir"
     echo "Downloading $download_url"
-    fetch "$download_url" "$filename"
+    if ! fetch "$download_url" "$filename"; then
+        >&2 echo "Download failed. The dev release may be republishing, retry in a few minutes."
+        exit 1
+    fi
     $util "$filename"
     rm -f "$filename"
 )
