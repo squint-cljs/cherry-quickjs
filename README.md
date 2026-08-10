@@ -153,6 +153,33 @@ modules above, so npm libraries that use them work:
 (bfs/slurp "README.md")
 ```
 
+## Local namespaces
+
+Bare namespace requires resolve to `.cljs` and `.cljc` files on `.`,
+`src` and `test`:
+
+```clojure
+(require '[my.util :as util])   ;; loads src/my/util.cljs
+```
+
+## Clojure dependencies
+
+`choq.deps/add-deps` resolves Clojure libraries from Clojars
+and Maven Central with
+[grenadine](https://github.com/clojurestar/grenadine). Namespaces from
+installed libraries load with plain require afterwards:
+
+```clojure
+(require '[choq.deps :as deps])
+
+(deps/add-deps '{:deps {dev.weavejester/medley {:mvn/version "1.8.0"}}})
+
+(require '[medley.core :as m])
+(m/index-by :id [{:id 1} {:id 2}])
+```
+
+Jars cache in `~/.m2/repository` like on the JVM.
+
 ## Build from source
 
 ```sh
