@@ -81,7 +81,7 @@ Embedded cherry namespaces: `clojure.string`, `clojure.set`,
 
 Node modules from [LLRT](https://github.com/awslabs/llrt), also
 available under their `node:` names: `fs`, `fs/promises`, `path`,
-`buffer`, `timers`, `tty`, `crypto`, `net`, `os`, `process`, `zlib`.
+`buffer`, `timers`, `tty`, `crypto`, `net`, `os`, `process`, `url`, `util`, `zlib`.
 [API.md](https://github.com/awslabs/llrt/blob/main/API.md) lists the
 functions that each module supports. `stream`, `events` and
 `string_decoder` are vendored js implementations based on
