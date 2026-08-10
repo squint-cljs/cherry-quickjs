@@ -64,7 +64,9 @@ const CLJC: &[(&str, &str)] = &[
 // the directory holding the jar sources
 fn fetch_grenadine() -> std::path::PathBuf {
     use sha2::{Digest, Sha256};
-    let cache_dir = Path::new(&env::var("HOME").unwrap()).join(".cache/choq/build");
+    // windows sets USERPROFILE, not HOME
+    let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).unwrap();
+    let cache_dir = Path::new(&home).join(".cache/choq/build");
     fs::create_dir_all(&cache_dir).unwrap();
     let jar = cache_dir.join(format!("grenadine-{}.jar", GRENADINE_VERSION));
     if !jar.exists() {

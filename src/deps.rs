@@ -149,7 +149,7 @@ pub fn load_mvn<'js>(
         .map(|b| format!("{:02x}", b))
         .collect();
     let cache_dir =
-        std::path::Path::new(&std::env::var("HOME").unwrap()).join(".cache/choq/compiled");
+        std::path::Path::new(&crate::home_dir().unwrap()).join(".cache/choq/compiled");
     let cache = cache_dir.join(format!("{}.js", sha));
     let js = if let Ok(cached) = std::fs::read_to_string(&cache) {
         cached

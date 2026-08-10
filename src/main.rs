@@ -90,6 +90,11 @@ fn normalize(path: &str) -> String {
 // and caches it under ~/.cache/choq, keyed by the url hash.
 // Imports inside a remote module resolve against its url.
 
+// windows sets USERPROFILE, not HOME
+pub fn home_dir() -> Option<String> {
+    std::env::var("HOME").ok().or_else(|| std::env::var("USERPROFILE").ok())
+}
+
 fn is_url(s: &str) -> bool {
     s.starts_with("https://") || s.starts_with("http://")
 }
@@ -141,7 +146,7 @@ fn join_url(base: &str, name: &str) -> String {
 
 fn url_cache_path(url: &str) -> Option<std::path::PathBuf> {
     use sha2::{Digest, Sha256};
-    let home = std::env::var("HOME").ok()?;
+    let home = home_dir()?;
     let hex: String = Sha256::digest(url.as_bytes())
         .iter()
         .map(|b| format!("{:02x}", b))
