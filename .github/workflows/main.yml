@@ -45,6 +45,9 @@ jobs:
       - name: Install cherry-cljs
         run: pnpm install --frozen-lockfile
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Version
         shell: bash
         run: echo "VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)" >> "$GITHUB_ENV"
