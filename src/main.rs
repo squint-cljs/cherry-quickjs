@@ -366,24 +366,36 @@ globalThis.__evalCherry = async (code) => {
     try { await import('choq.deps'); } catch (e) { return ['error', __str(e), 'user']; }
   }
   await __preloadRequires(code);
-  let res;
+  const opts = {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true};
+  let forms;
   try {
-    res = compiler.compileStringEx(code, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
+    forms = compiler.readStringEx(code, opts, st.state);
   } catch (e) {
     const m = String((e && e.message) || e);
     if (m.includes('EOF while reading')) return ['incomplete', '', ''];
     return ['compile-error', m, ''];
   }
-  st.state = res;
-  const ns = res.ns ? String(res.ns) : 'user';
-  try {
-    const v = await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
-    return ['ok', (v === null || v === undefined) ? 'nil' : core.pr_str(v), ns];
-  } catch (e) {
-    // *e, like a Clojure repl: cljs.core/*e is a dynamic var box
-    if (core._STAR_e) core._STAR_e.val = e;
-    return ['error', __str(e), ns];
+  // one form at a time: a form can then use a macro an earlier one defines
+  let ns = st.state && st.state.ns ? String(st.state.ns) : 'user';
+  let v;
+  for (const form of forms) {
+    let res;
+    try {
+      res = compiler.compileFormEx(form, opts, st.state);
+    } catch (e) {
+      return ['compile-error', String((e && e.message) || e), ns];
+    }
+    st.state = res;
+    ns = res.ns ? String(res.ns) : ns;
+    try {
+      v = await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
+    } catch (e) {
+      // *e, like a Clojure repl: cljs.core/*e is a dynamic var box
+      if (core._STAR_e) core._STAR_e.val = e;
+      return ['error', __str(e), ns];
+    }
   }
+  return ['ok', (v === null || v === undefined) ? 'nil' : core.pr_str(v), ns];
 };
 globalThis.__compileCherry = (src) => {
   const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
@@ -406,17 +418,25 @@ globalThis.__evalCherryFile = async (path) => {
   const dir = os.homedir() + '/.cache/choq/compiled';
   const cached = dir + '/' + sha + '.js';
   await __preloadRequires(src);
-  let js;
   if (fs.existsSync(cached)) {
-    js = fs.readFileSync(cached, 'utf8');
-  } else {
-    const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
-    st.state = res;
-    js = res.javascript;
-    fs.mkdirSync(dir, {recursive: true});
-    fs.writeFileSync(cached, js);
+    // nothing left to compile, so the file runs in one go
+    await (0, eval)('(async function () {\n' + fs.readFileSync(cached, 'utf8') + '\n})()');
+    return;
   }
-  await (0, eval)('(async function () {\n' + js + '\n})()');
+  // compile and run one form at a time, the way a repl does, so that a form
+  // can use a macro an earlier form in the file defines. The compiled forms
+  // are cached joined: a later run has its macros already expanded and needs
+  // no compiler at all.
+  const opts = {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true};
+  const chunks = [];
+  for (const form of compiler.readStringEx(src, opts, st.state)) {
+    const res = compiler.compileFormEx(form, opts, st.state);
+    st.state = res;
+    chunks.push(res.javascript);
+    await (0, eval)('(async function () {\n' + res.javascript + '\n})()');
+  }
+  fs.mkdirSync(dir, {recursive: true});
+  fs.writeFileSync(cached, chunks.join(''));
 };
 "#;
 
