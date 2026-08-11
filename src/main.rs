@@ -340,7 +340,7 @@ const BOOTSTRAP_JS: &str = r#"
 import * as compiler from 'cherry-cljs/lib/compiler.js';
 import * as core from 'cherry-cljs/cljs.core.js';
 const st = { state: null };
-// load requireable namespaces before compiling, so self-hosted macros
+// load requireable namespaces before compiling, so runtime macros
 // they define are registered by the time the compiler expands their
 // uses; dotted bare symbols in require position, misses ignored
 globalThis.__preloadRequires = async (code) => {
@@ -366,7 +366,7 @@ globalThis.__evalCherry = async (code) => {
     try { await import('choq.deps'); } catch (e) { return ['error', __str(e), 'user']; }
   }
   await __preloadRequires(code);
-  const opts = {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true};
+  const opts = {repl: true, context: 'return', elide_exports: true, runtime_macros: true};
   let forms;
   try {
     forms = compiler.readStringEx(code, opts, st.state);
@@ -398,7 +398,7 @@ globalThis.__evalCherry = async (code) => {
   return ['ok', (v === null || v === undefined) ? 'nil' : core.pr_str(v), ns];
 };
 globalThis.__compileCherry = (src) => {
-  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true}, st.state);
+  const res = compiler.compileStringEx(src, {repl: true, context: 'return', elide_exports: true, runtime_macros: true}, st.state);
   st.state = res;
   return res.javascript;
 };
@@ -427,7 +427,7 @@ globalThis.__evalCherryFile = async (path) => {
   // can use a macro an earlier form in the file defines. The compiled forms
   // are cached joined: a later run has its macros already expanded and needs
   // no compiler at all.
-  const opts = {repl: true, context: 'return', elide_exports: true, self_hosted_macros: true};
+  const opts = {repl: true, context: 'return', elide_exports: true, runtime_macros: true};
   const chunks = [];
   for (const form of compiler.readStringEx(src, opts, st.state)) {
     const res = compiler.compileFormEx(form, opts, st.state);
